@@ -8,13 +8,13 @@
 <style>
   @font-face {
     font-family: 'AG Book Rounded';
-    src: url('AG Book Rounded Bold.otf') format('opentype');
+    src: url('https://iamsuperon.github.io/Watermark_Filter_CMFY/AG%20Book%20Rounded%20Bold.otf') format('opentype');
     font-weight: bold;
     font-style: normal;
   }
   @font-face {
     font-family: 'AG Book Rounded';
-    src: url('AG Book Rounded Medium.otf') format('opentype');
+    src: url('https://iamsuperon.github.io/Watermark_Filter_CMFY/AG%20Book%20Rounded%20Medium.otf') format('opentype');
     font-weight: normal;
     font-style: normal;
   }
@@ -100,7 +100,6 @@
   .field select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7469' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px;
-    -webkit-appearance: none; appearance: none;
   }
   .field input[type="text"]:focus, .field select:focus { border-color: var(--accent); background: var(--surface); }
 
@@ -121,10 +120,20 @@
   .toggle-info .toggle-sub { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 
   .btn-secondary {
-    background: var(--surface2); border: 1px solid var(--border); padding: 8px 12px;
-    border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 12px;
-    font-weight: 500; cursor: pointer; color: var(--text); transition: all 0.2s;
-    display: flex; align-items: center; gap: 8px; width: fit-content;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
   }
   .btn-secondary:hover { background: var(--border); }
   .btn-secondary.active { background: var(--accent); color: white; border-color: var(--accent); }
@@ -139,21 +148,143 @@
   .switch input:checked + .switch-track { background: var(--accent); }
   .switch input:checked + .switch-track:before { transform: translateX(18px); }
 
-  .filter-grid { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 8px; scrollbar-width: none; }
+  .filter-grid {
+    display: flex; overflow-x: auto; gap: 12px; padding-bottom: 8px; scrollbar-width: none;
+  }
   .filter-grid::-webkit-scrollbar { display: none; }
-  .filter-card { flex-shrink: 0; width: 72px; cursor: pointer; text-align: center; }
+  .filter-card {
+    flex-shrink: 0; width: 72px; cursor: pointer; text-align: center;
+  }
   .filter-card .preview {
     height: 56px; border-radius: 12px; border: 2px solid transparent;
-    transition: all 0.2s; background-size: cover;
+    transition: all 0.2s; background-size: cover; position: relative;
   }
   .filter-card.active .preview { border-color: #1a1814; box-shadow: 0 0 0 3px rgba(26,24,20,.2); }
-  .filter-card .label { font-size: 11px; font-weight: 500; margin-top: 6px; color: var(--text); }
+  .filter-card .label {
+    font-size: 11px; font-weight: 500; margin-top: 6px; color: var(--text);
+  }
 
+  /* ── Preview & Crop ── */
   .preview-wrap {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; display: none;
   }
   .preview-wrap canvas { width: 100%; height: auto; display: block; }
+
+  /* Crop container */
+  #crop-container {
+    display: none;
+    position: relative;
+    background: #111;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    user-select: none;
+  }
+  #crop-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  #crop-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+  /* the dark mask areas */
+  #crop-overlay .mask-top,
+  #crop-overlay .mask-bottom,
+  #crop-overlay .mask-left,
+  #crop-overlay .mask-right {
+    position: absolute;
+    background: rgba(0,0,0,0.5);
+    pointer-events: none;
+  }
+  /* the bright crop box */
+  #crop-box {
+    position: absolute;
+    border: 2px solid #fff;
+    box-sizing: border-box;
+    cursor: move;
+    pointer-events: all;
+  }
+  #crop-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px);
+    background-size: 33.33% 33.33%;
+    pointer-events: none;
+  }
+  /* corner handles */
+  .crop-handle {
+    position: absolute;
+    width: 14px; height: 14px;
+    background: #fff;
+    border: 2px solid #1a1814;
+    border-radius: 2px;
+    pointer-events: all;
+  }
+  .crop-handle.tl { top: -7px; left: -7px; cursor: nwse-resize; }
+  .crop-handle.tr { top: -7px; right: -7px; cursor: nesw-resize; }
+  .crop-handle.bl { bottom: -7px; left: -7px; cursor: nesw-resize; }
+  .crop-handle.br { bottom: -7px; right: -7px; cursor: nwse-resize; }
+  /* edge handles */
+  .crop-handle.t  { top: -7px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+  .crop-handle.b  { bottom: -7px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+  .crop-handle.l  { left: -7px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+  .crop-handle.r  { right: -7px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+  /* Crop toolbar */
+  #crop-toolbar {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #crop-toolbar .crop-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-faint); margin-right: 4px;
+  }
+  .crop-mode-btn {
+    padding: 6px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface2);
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    cursor: pointer; color: var(--text); transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .crop-mode-btn:hover { background: var(--border); }
+  .crop-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .crop-spacer { flex: 1; }
+  #crop-info {
+    font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-faint);
+    padding: 4px 8px; background: var(--surface2); border-radius: 4px;
+  }
+  #apply-crop-btn {
+    padding: 7px 14px; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  #apply-crop-btn:hover { opacity: 0.85; }
+  #cancel-crop-btn {
+    padding: 7px 12px; background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: background 0.15s;
+  }
+  #cancel-crop-btn:hover { background: var(--border); }
+
+  /* Crop button in toolbar */
+  #crop-btn { margin-bottom: 0; }
 
   #dl-btn {
     width: 100%; padding: 13px; background: var(--accent); color: var(--accent-fg);
@@ -244,13 +375,31 @@
 
     <div class="panel-section">
       <div class="section-title">Orientation & Effects</div>
-      <div style="margin-bottom: 16px;">
+      <div style="margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
         <button id="flip-btn" class="btn-secondary">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3l-5 5 5 5V3z"></path><path d="M9 21l5-5-5-5v10z"></path></svg>
           Flip Horizontal
         </button>
+        <button id="crop-btn" class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6 18 22"/>
+          </svg>
+          Crop
+        </button>
       </div>
       <div class="field">
+        <label>Brightness &nbsp;<span class="slider-val" id="brightnessVal">0</span></label>
+        <div class="slider-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0">
+        </div>
+      </div>
+      <div class="field" style="margin-top: 12px;">
+        <label>Contrast &nbsp;<span class="slider-val" id="contrastVal">0</span></label>
+        <div class="slider-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0">
+        </div>
+      </div>
+      <div class="field" style="margin-top: 12px;">
         <label>Grain / Noise &nbsp;<span class="slider-val" id="grainVal">0</span></label>
         <div class="slider-row">
           <input type="range" id="grain" min="0" max="10" value="0">
@@ -261,12 +410,51 @@
     <div class="panel-section">
       <div class="section-title">Film (VSCO Kodak)</div>
       <div id="filter-grid" class="filter-grid"></div>
+      
       <div class="field" style="margin-top: 18px;">
         <label>Filter Strength &nbsp;<span class="slider-val" id="filterStrengthVal">100%</span></label>
         <div class="slider-row">
           <input type="range" id="filterStrength" min="0" max="100" value="100">
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Crop toolbar (shown when crop mode is active) -->
+  <div id="crop-toolbar">
+    <span class="crop-label">Crop</span>
+    <button class="crop-mode-btn active" id="mode-free">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Freehand
+    </button>
+    <button class="crop-mode-btn" id="mode-locked">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Locked ratio
+    </button>
+    <span class="crop-spacer"></span>
+    <span id="crop-info">— × —</span>
+    <button id="cancel-crop-btn">Cancel</button>
+    <button id="apply-crop-btn">Apply</button>
+  </div>
+
+  <!-- Crop interactive canvas -->
+  <div id="crop-container">
+    <canvas id="crop-canvas"></canvas>
+    <div id="crop-overlay">
+      <div class="mask-top" id="mask-top"></div>
+      <div class="mask-bottom" id="mask-bottom"></div>
+      <div class="mask-left" id="mask-left"></div>
+      <div class="mask-right" id="mask-right"></div>
+    </div>
+    <div id="crop-box">
+      <div class="crop-handle tl" data-handle="tl"></div>
+      <div class="crop-handle tr" data-handle="tr"></div>
+      <div class="crop-handle bl" data-handle="bl"></div>
+      <div class="crop-handle br" data-handle="br"></div>
+      <div class="crop-handle t"  data-handle="t"></div>
+      <div class="crop-handle b"  data-handle="b"></div>
+      <div class="crop-handle l"  data-handle="l"></div>
+      <div class="crop-handle r"  data-handle="r"></div>
     </div>
   </div>
 
@@ -288,17 +476,35 @@
   const borderSizeInput = document.getElementById('borderSize');
   const previewWrap = document.getElementById('preview-wrap');
   const flipBtn = document.getElementById('flip-btn');
+  const cropBtn = document.getElementById('crop-btn');
 
   let img = null;
   let downloadCount = 1;
   let currentFilter = 'none';
   let isFlipped = false;
 
-  // Pre-load AG Book Rounded so canvas can use it
-  document.fonts.load("bold 16px 'AG Book Rounded'").then(() => {
-    if (img) draw();
-  });
+  // Pre-load AG Book Rounded so canvas uses it from the first draw
+  document.fonts.load("bold 16px 'AG Book Rounded'").then(() => { if (img) draw(); });
 
+  // ── Crop state ──
+  let cropMode = false;
+  let cropRatioLocked = false;
+  let cropAspectRatio = 1; // original image ratio
+  // crop box in display-pixel coords (relative to crop-container)
+  let cropBox = { x: 0, y: 0, w: 0, h: 0 };
+  let cropDrag = null; // { type: 'move'|handle, startX, startY, origBox }
+  const cropContainer = document.getElementById('crop-container');
+  const cropCanvas = document.getElementById('crop-canvas');
+  const cropCtx = cropCanvas.getContext('2d');
+  const cropToolbar = document.getElementById('crop-toolbar');
+  const cropInfo = document.getElementById('crop-info');
+  const cropBoxEl = document.getElementById('crop-box');
+  const modeFreeBtn = document.getElementById('mode-free');
+  const modeLockedBtn = document.getElementById('mode-locked');
+  const applyCropBtn = document.getElementById('apply-crop-btn');
+  const cancelCropBtn = document.getElementById('cancel-crop-btn');
+
+  // Drag & drop
   ['dragenter','dragover','dragleave','drop'].forEach(evt => {
     window.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
   });
@@ -313,6 +519,7 @@
     if (e.target.files.length > 0) handleFile(e.target.files[0]);
   });
 
+  // Toggle Flip
   flipBtn.addEventListener('click', () => {
     isFlipped = !isFlipped;
     flipBtn.classList.toggle('active', isFlipped);
@@ -324,12 +531,14 @@
     draw();
   });
 
+  // Dynamic Range Input handling
   document.querySelectorAll('input[type="range"]').forEach(input => {
     input.addEventListener('input', function() {
       const valSpan = document.getElementById(this.id + 'Val');
       if (valSpan) {
         if (this.id === 'wOpacity') valSpan.textContent = parseFloat(this.value).toFixed(1);
-        else valSpan.textContent = this.value + (this.id === 'grain' ? '' : '%');
+        else if (this.id === 'grain' || this.id === 'brightness' || this.id === 'contrast') valSpan.textContent = this.value;
+        else valSpan.textContent = this.value + '%';
       }
       draw();
     });
@@ -345,9 +554,7 @@
     const reader = new FileReader();
     reader.onload = e => {
       img = new Image();
-      img.onload = () => {
-        document.fonts.ready.then(() => draw());
-      };
+      img.onload = () => { document.fonts.ready.then(() => draw()); };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
@@ -366,15 +573,15 @@
 
   const filmPresets = {
     none: { name: 'None', previewBg: 'linear-gradient(135deg, #f0f0f0, #e0e0e0)' },
-    kp4: { name: 'KP4', previewBg: 'linear-gradient(135deg, #f5e0d0, #d8c0a8)',
+    kp4: { name: 'KP4', previewBg: 'linear-gradient(135deg, #f5e0d0, #d8c0a8)', 
            grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.06; d[i+1]*=1.03; d[i+2]*=0.94; } } },
-    kg200: { name: 'KG200', previewBg: 'linear-gradient(135deg, #f5e8c0, #e8d090)',
+    kg200: { name: 'KG200', previewBg: 'linear-gradient(135deg, #f5e8c0, #e8d090)', 
              grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.12; d[i+1]*=1.06; d[i+2]*=0.85; } } },
-    kc25: { name: 'KC25', previewBg: 'linear-gradient(135deg, #a8d0ff, #f0b090)',
+    kc25: { name: 'KC25', previewBg: 'linear-gradient(135deg, #a8d0ff, #f0b090)', 
             grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.18; d[i+1]*=1.08; d[i+2]*=1.22; } } },
-    ka: { name: 'Ektachrome', previewBg: 'linear-gradient(135deg, #b0d8f0, #c8e0d8)',
+    ka: { name: 'Ektachrome', previewBg: 'linear-gradient(135deg, #b0d8f0, #c8e0d8)', 
           grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i+1]*=1.12; d[i+2]*=1.18; } } },
-    ultramax: { name: 'UltraMax', previewBg: 'linear-gradient(135deg, #f0c8a0, #d090c0)',
+    ultramax: { name: 'UltraMax', previewBg: 'linear-gradient(135deg, #f0c8a0, #d090c0)', 
                 grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.22; d[i+2]*=1.15; } } }
   };
 
@@ -391,32 +598,37 @@
     });
   }
 
-  function draw() {
+  // Draws image + filters + border onto a given canvas/context, WITHOUT watermark.
+  // Used both for the main preview base and for the crop canvas.
+  function drawRaw(targetCanvas, targetCtx) {
     if (!img) return;
     const borderPct = parseInt(borderSizeInput.value) / 100;
     const borderPx = borderToggle.checked ? Math.round(Math.min(img.width, img.height) * borderPct) : 0;
 
-    canvas.width = img.width + borderPx * 2;
-    canvas.height = img.height + borderPx * 2;
+    targetCanvas.width = img.width + borderPx * 2;
+    targetCanvas.height = img.height + borderPx * 2;
 
     if (borderToggle.checked) {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      targetCtx.fillStyle = '#ffffff';
+      targetCtx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
     }
 
-    ctx.save();
+    targetCtx.save();
     if (isFlipped) {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
+      targetCtx.translate(targetCanvas.width, 0);
+      targetCtx.scale(-1, 1);
     }
-    ctx.drawImage(img, borderPx, borderPx);
+    targetCtx.drawImage(img, borderPx, borderPx);
 
     const strength = parseFloat(document.getElementById('filterStrength').value) / 100;
     const preset = filmPresets[currentFilter];
     const grainLevel = parseInt(document.getElementById('grain').value);
+    const brightnessVal = parseInt(document.getElementById('brightness').value);
+    const contrastVal = parseInt(document.getElementById('contrast').value);
 
-    if ((currentFilter !== 'none' && strength > 0) || grainLevel > 0) {
-      let imageData = ctx.getImageData(borderPx, borderPx, img.width, img.height);
+    if ((currentFilter !== 'none' && strength > 0) || grainLevel > 0 || brightnessVal !== 0 || contrastVal !== 0) {
+      let imageData = targetCtx.getImageData(borderPx, borderPx, img.width, img.height);
+
       if (currentFilter !== 'none' && preset.grade) {
         const original = new Uint8ClampedArray(imageData.data);
         preset.grade(imageData.data);
@@ -426,44 +638,72 @@
           imageData.data[i+2] = original[i+2] * (1 - strength) + imageData.data[i+2] * strength;
         }
       }
-      if (grainLevel > 0) imageData = addGrain(imageData, grainLevel);
-      const putX = isFlipped ? (canvas.width - borderPx - img.width) : borderPx;
-      ctx.putImageData(imageData, putX, borderPx);
-    }
-    ctx.restore();
 
+      if (brightnessVal !== 0 || contrastVal !== 0) {
+        const d = imageData.data;
+        const bAdj = brightnessVal * 2.55;
+        const cFactor = contrastVal > 0
+          ? (259 * (contrastVal + 255)) / (255 * (259 - contrastVal))
+          : 1 + contrastVal / 100;
+        for (let i = 0; i < d.length; i += 4) {
+          for (let c = 0; c < 3; c++) {
+            let v = d[i + c];
+            v += bAdj;
+            v = cFactor * (v - 128) + 128;
+            d[i + c] = Math.max(0, Math.min(255, v));
+          }
+        }
+      }
+
+      if (grainLevel > 0) imageData = addGrain(imageData, grainLevel);
+
+      const putX = isFlipped ? (targetCanvas.width - borderPx - img.width) : borderPx;
+      targetCtx.putImageData(imageData, putX, borderPx);
+    }
+    targetCtx.restore();
+
+    // Vignette overlay (no watermark)
     if (currentFilter !== 'none') {
-      const vignette = ctx.createRadialGradient(
-        canvas.width/2, canvas.height/2, Math.min(canvas.width, canvas.height)*0.4,
-        canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)*0.8
+      const strength2 = parseFloat(document.getElementById('filterStrength').value) / 100;
+      const vignette = targetCtx.createRadialGradient(
+        targetCanvas.width/2, targetCanvas.height/2, Math.min(targetCanvas.width, targetCanvas.height)*0.4,
+        targetCanvas.width/2, targetCanvas.height/2, Math.max(targetCanvas.width, targetCanvas.height)*0.8
       );
       vignette.addColorStop(0, 'rgba(0,0,0,0)');
-      vignette.addColorStop(1, `rgba(0,0,0,${0.13 * strength})`);
-      ctx.fillStyle = vignette;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      vignette.addColorStop(1, `rgba(0,0,0,${0.13 * strength2})`);
+      targetCtx.fillStyle = vignette;
+      targetCtx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
     }
+  }
 
-    // Watermark — AG Book Rounded Bold
-    const fontSize = canvas.width * (document.getElementById('wSize').value / 100);
-    ctx.font = `bold ${fontSize}px 'AG Book Rounded', sans-serif`;
-    ctx.textBaseline = 'middle';
-    const marginX = img.width * 0.03 + borderPx;
-    const marginY = img.height * 0.03 + borderPx;
+  // Draws watermark on top of whatever is already on the given canvas/context.
+  function drawWatermark(targetCanvas, targetCtx, imgW, imgH, borderPx) {
+    const fontSize = targetCanvas.width * (document.getElementById('wSize').value / 100);
+    targetCtx.font = `bold ${fontSize}px 'AG Book Rounded', sans-serif`;
+    targetCtx.textBaseline = 'middle';
+    const marginX = imgW * 0.03 + borderPx;
+    const marginY = imgH * 0.03 + borderPx;
     let x, y;
-
     switch(document.getElementById('wPos').value) {
-      case 'top-left':    x = marginX;                y = marginY;                 ctx.textAlign = 'left';  break;
-      case 'top-right':   x = canvas.width - marginX; y = marginY;                 ctx.textAlign = 'right'; break;
-      case 'bottom-left': x = marginX;                y = canvas.height - marginY; ctx.textAlign = 'left';  break;
-      case 'center-left': x = marginX;                y = canvas.height / 2;       ctx.textAlign = 'left';  break;
-      default:            x = canvas.width - marginX; y = canvas.height - marginY; ctx.textAlign = 'right'; break;
+      case 'top-left':    x = marginX; y = marginY; targetCtx.textAlign = 'left'; break;
+      case 'top-right':   x = targetCanvas.width - marginX; y = marginY; targetCtx.textAlign = 'right'; break;
+      case 'bottom-left': x = marginX; y = targetCanvas.height - marginY; targetCtx.textAlign = 'left'; break;
+      case 'center-left': x = marginX; y = targetCanvas.height/2; targetCtx.textAlign = 'left'; break;
+      default:            x = targetCanvas.width - marginX; y = targetCanvas.height - marginY; targetCtx.textAlign = 'right'; break;
     }
-
     const opacity = document.getElementById('wOpacity').value;
-    ctx.fillStyle = document.getElementById('wColor').value === 'white'
-      ? `rgba(255,255,255,${opacity})`
-      : `rgba(0,0,0,${opacity})`;
-    ctx.fillText(document.getElementById('wText').value, x, y);
+    targetCtx.fillStyle = document.getElementById('wColor').value === 'white'
+      ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`;
+    targetCtx.fillText(document.getElementById('wText').value, x, y);
+  }
+
+  function draw() {
+    if (!img) return;
+    const borderPct = parseInt(borderSizeInput.value) / 100;
+    const borderPx = borderToggle.checked ? Math.round(Math.min(img.width, img.height) * borderPct) : 0;
+
+    drawRaw(canvas, ctx);
+    drawWatermark(canvas, ctx, img.width, img.height, borderPx);
 
     previewWrap.style.display = 'block';
     dlBtn.disabled = false;
@@ -476,6 +716,216 @@
     a.href = canvas.toDataURL('image/png');
     a.click();
     downloadCount++;
+  });
+
+  // ══════════════════════════════════════════
+  //  CROP MODE
+  // ══════════════════════════════════════════
+
+  cropBtn.addEventListener('click', () => {
+    if (!img) return;
+    enterCropMode();
+  });
+
+  modeFreeBtn.addEventListener('click', () => {
+    cropRatioLocked = false;
+    modeFreeBtn.classList.add('active');
+    modeLockedBtn.classList.remove('active');
+  });
+
+  modeLockedBtn.addEventListener('click', () => {
+    cropRatioLocked = true;
+    modeLockedBtn.classList.add('active');
+    modeFreeBtn.classList.remove('active');
+    // Recalculate crop box to match locked ratio
+    enforceLocked();
+    updateCropUI();
+  });
+
+  cancelCropBtn.addEventListener('click', exitCropMode);
+
+  applyCropBtn.addEventListener('click', () => {
+    applyCrop();
+    exitCropMode();
+  });
+
+  function enterCropMode() {
+    cropMode = true;
+    cropBtn.classList.add('active');
+
+    // Draw raw image (no watermark) into crop canvas
+    drawRaw(cropCanvas, cropCtx);
+
+    cropAspectRatio = canvas.width / canvas.height;
+    cropRatioLocked = false;
+    modeFreeBtn.classList.add('active');
+    modeLockedBtn.classList.remove('active');
+
+    // Show crop UI, hide regular preview
+    cropContainer.style.display = 'block';
+    cropToolbar.style.display = 'flex';
+    previewWrap.style.display = 'none';
+    dlBtn.disabled = true;
+
+    // Initialise crop box to full image (in display pixels)
+    cropContainer.offsetWidth; // force reflow
+    const displayW = cropContainer.clientWidth;
+    const displayH = cropCanvas.clientHeight;
+    cropBox = { x: 0, y: 0, w: displayW, h: displayH };
+    updateCropUI();
+  }
+
+  function exitCropMode() {
+    cropMode = false;
+    cropBtn.classList.remove('active');
+    cropContainer.style.display = 'none';
+    cropToolbar.style.display = 'none';
+    previewWrap.style.display = 'block';
+    dlBtn.disabled = false;
+  }
+
+  function applyCrop() {
+    // Convert display coords → canvas pixel coords
+    const displayW = cropContainer.clientWidth;
+    const scaleX = cropCanvas.width / displayW;
+    const displayH = cropContainer.clientHeight;
+    const scaleY = cropCanvas.height / displayH;
+
+    const sx = Math.round(cropBox.x * scaleX);
+    const sy = Math.round(cropBox.y * scaleY);
+    const sw = Math.round(cropBox.w * scaleX);
+    const sh = Math.round(cropBox.h * scaleY);
+
+    // Create a temporary canvas with the cropped region
+    const tmp = document.createElement('canvas');
+    tmp.width = sw; tmp.height = sh;
+    tmp.getContext('2d').drawImage(cropCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    // Replace img with the cropped image and redraw
+    const croppedImg = new Image();
+    croppedImg.onload = () => { img = croppedImg; draw(); };
+    croppedImg.src = tmp.toDataURL();
+  }
+
+  function updateCropUI() {
+    // Position the crop-box element
+    cropBoxEl.style.left = cropBox.x + 'px';
+    cropBoxEl.style.top  = cropBox.y + 'px';
+    cropBoxEl.style.width  = cropBox.w + 'px';
+    cropBoxEl.style.height = cropBox.h + 'px';
+
+    // Update masks
+    const cw = cropContainer.clientWidth;
+    const ch = cropContainer.clientHeight;
+    const { x, y, w, h } = cropBox;
+    document.getElementById('mask-top').style.cssText    = `top:0; left:0; right:0; height:${y}px`;
+    document.getElementById('mask-bottom').style.cssText = `bottom:0; left:0; right:0; height:${ch - y - h}px`;
+    document.getElementById('mask-left').style.cssText   = `top:${y}px; left:0; width:${x}px; height:${h}px`;
+    document.getElementById('mask-right').style.cssText  = `top:${y}px; right:0; width:${cw - x - w}px; height:${h}px`;
+
+    // Info label: show real pixel dimensions
+    const displayW = cropContainer.clientWidth;
+    const scaleX = cropCanvas.width / displayW;
+    const displayH = cropContainer.clientHeight;
+    const scaleY = cropCanvas.height / displayH;
+    const pw = Math.round(cropBox.w * scaleX);
+    const ph = Math.round(cropBox.h * scaleY);
+    cropInfo.textContent = `${pw} × ${ph} px`;
+  }
+
+  function clampBox(box) {
+    const cw = cropContainer.clientWidth;
+    const ch = cropContainer.clientHeight;
+    const MIN = 20;
+    box.w = Math.max(MIN, Math.min(box.w, cw));
+    box.h = Math.max(MIN, Math.min(box.h, ch));
+    box.x = Math.max(0, Math.min(box.x, cw - box.w));
+    box.y = Math.max(0, Math.min(box.y, ch - box.h));
+    return box;
+  }
+
+  function enforceLocked() {
+    // Adjust height to match locked aspect ratio, keeping width
+    const ratio = cropAspectRatio;
+    const newH = cropBox.w / ratio;
+    cropBox.h = newH;
+    cropBox = clampBox(cropBox);
+    // If height got clamped, adjust width too
+    cropBox.w = cropBox.h * ratio;
+    cropBox = clampBox(cropBox);
+  }
+
+  // ── Pointer events on crop box (move) ──
+  cropBoxEl.addEventListener('pointerdown', e => {
+    if (e.target.classList.contains('crop-handle')) return;
+    e.preventDefault();
+    cropDrag = { type: 'move', startX: e.clientX, startY: e.clientY, origBox: { ...cropBox } };
+    cropBoxEl.setPointerCapture(e.pointerId);
+  });
+
+  cropBoxEl.addEventListener('pointermove', e => {
+    if (!cropDrag || cropDrag.type !== 'move') return;
+    const dx = e.clientX - cropDrag.startX;
+    const dy = e.clientY - cropDrag.startY;
+    cropBox = { ...cropDrag.origBox, x: cropDrag.origBox.x + dx, y: cropDrag.origBox.y + dy };
+    cropBox = clampBox(cropBox);
+    updateCropUI();
+  });
+
+  cropBoxEl.addEventListener('pointerup', () => { cropDrag = null; });
+
+  // ── Pointer events on handles (resize) ──
+  document.querySelectorAll('.crop-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      cropDrag = {
+        type: 'handle',
+        handle: handle.dataset.handle,
+        startX: e.clientX,
+        startY: e.clientY,
+        origBox: { ...cropBox }
+      };
+      handle.setPointerCapture(e.pointerId);
+    });
+
+    handle.addEventListener('pointermove', e => {
+      if (!cropDrag || cropDrag.type !== 'handle') return;
+      const dx = e.clientX - cropDrag.startX;
+      const dy = e.clientY - cropDrag.startY;
+      const o = cropDrag.origBox;
+      let { x, y, w, h } = o;
+      const hType = cropDrag.handle;
+
+      if (hType.includes('r')) { w = Math.max(20, o.w + dx); }
+      if (hType.includes('l')) { x = o.x + dx; w = Math.max(20, o.w - dx); if (w === 20) x = o.x + o.w - 20; }
+      if (hType.includes('b')) { h = Math.max(20, o.h + dy); }
+      if (hType.includes('t')) { y = o.y + dy; h = Math.max(20, o.h - dy); if (h === 20) y = o.y + o.h - 20; }
+
+      cropBox = { x, y, w, h };
+
+      if (cropRatioLocked) {
+        const ratio = cropAspectRatio;
+        // Decide dominant axis based on handle type
+        if (hType === 't' || hType === 'b') {
+          cropBox.w = cropBox.h * ratio;
+        } else if (hType === 'l' || hType === 'r') {
+          cropBox.h = cropBox.w / ratio;
+        } else {
+          // corner: use whichever changed more
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            cropBox.h = cropBox.w / ratio;
+          } else {
+            cropBox.w = cropBox.h * ratio;
+          }
+        }
+      }
+
+      cropBox = clampBox(cropBox);
+      updateCropUI();
+    });
+
+    handle.addEventListener('pointerup', () => { cropDrag = null; });
   });
 
   renderFilters();
