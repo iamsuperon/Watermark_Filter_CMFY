@@ -1,412 +1,338 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Photo Watermarker</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-  /* --- CUSTOM FONT LOADING --- */
-  @font-face {
-    font-family: 'AGBookBold';
-    src: url('AG Book Rounded Bold.otf') format('opentype');
-    font-weight: 700;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Watermarker — CMFY</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* --- FONT LOADING --- */
+        @font-face {
+            font-family: 'AGBookBold';
+            src: url('AG Book Rounded Bold.otf') format('opentype');
+            font-weight: 700;
+        }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #f5f3ef;
+            --surface: #ffffff;
+            --surface2: #f9f8f6;
+            --border: #e2ddd6;
+            --border-strong: #c9c3b8;
+            --text: #1a1814;
+            --text-muted: #7a7469;
+            --text-faint: #a09890;
+            --accent: #1a1814;
+            --accent-fg: #ffffff;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --font-main: 'AGBookBold', sans-serif;
+        }
 
-  :root {
-    --bg: #f5f3ef;
-    --surface: #ffffff;
-    --surface2: #f9f8f6;
-    --border: #e2ddd6;
-    --border-strong: #c9c3b8;
-    --text: #1a1814;
-    --text-muted: #7a7469;
-    --text-faint: #a09890;
-    --accent: #1a1814;
-    --accent-fg: #ffffff;
-    --radius: 10px;
-    --radius-sm: 6px;
-    /* Use your custom font as the primary UI font */
-    --font-main: 'AGBookBold', 'DM Sans', sans-serif;
-  }
+        [data-theme="dark"] {
+            --bg: #1a1917;
+            --surface: #242220;
+            --surface2: #2e2b28;
+            --border: #3a3733;
+            --border-strong: #4e4a45;
+            --text: #f0ede8;
+            --text-muted: #9a9088;
+            --text-faint: #6a6360;
+            --accent: #f0ede8;
+            --accent-fg: #1a1917;
+        }
 
-  [data-theme="dark"] {
-    --bg: #1a1917;
-    --surface: #242220;
-    --surface2: #2e2b28;
-    --border: #3a3733;
-    --border-strong: #4e4a45;
-    --text: #f0ede8;
-    --text-muted: #9a9088;
-    --text-faint: #6a6360;
-    --accent: #f0ede8;
-    --accent-fg: #1a1917;
-  }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    font-family: var(--font-main);
-    background: var(--bg);
-    min-height: 100vh;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 40px 20px;
-    color: var(--text);
-    transition: background 0.2s, color 0.2s;
-    -webkit-font-smoothing: antialiased;
-  }
-  .app { width: 100%; max-width: 560px; }
+        body {
+            font-family: var(--font-main);
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            line-height: 1.4;
+            transition: background 0.3s;
+            -webkit-font-smoothing: antialiased;
+        }
 
-  .header {
-    margin-bottom: 28px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-  .header-text h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; color: var(--text); }
-  .header-text p { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-weight: 700; }
+        .container { width: 100%; max-width: 520px; }
 
-  #dark-mode-btn {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 7px 12px;
-    font-family: var(--font-main);
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-  #dark-mode-btn:hover { border-color: var(--border-strong); color: var(--text); }
-  #dark-mode-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+        .header h1 { font-size: 24px; letter-spacing: -0.5px; }
+        .header p { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
 
-  .drop-zone {
-    border: 1.5px dashed var(--border-strong);
-    border-radius: var(--radius);
-    background: var(--surface);
-    padding: 48px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-    margin-bottom: 16px;
-  }
-  .drop-zone:hover, .drop-zone.hover { border-color: var(--accent); background: var(--surface2); }
-  .drop-zone .icon {
-    width: 40px; height: 40px; margin: 0 auto 12px;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; display: flex; align-items: center; justify-content: center;
-  }
-  .drop-zone .icon svg { width: 20px; height: 20px; stroke: var(--text-muted); }
-  .drop-zone .label { font-size: 14px; font-weight: 700; color: var(--text); }
-  .drop-zone .sublabel { font-size: 12px; color: var(--text-faint); margin-top: 4px; font-weight: 700; }
-  #status-text { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-muted); margin-top: 10px; }
+        #dark-mode-toggle {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-main);
+            font-size: 12px;
+            cursor: pointer;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 16px;
-  }
-  .panel-section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
-  .panel-section:last-child { border-bottom: none; }
-  .section-title {
-    font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 12px;
-  }
+        /* Upload Area */
+        .upload-card {
+            background: var(--surface);
+            border: 1.5px dashed var(--border-strong);
+            border-radius: var(--radius);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: 0.2s;
+        }
+        .upload-card:hover { border-color: var(--text); background: var(--surface2); }
+        .upload-card .icon { font-size: 24px; margin-bottom: 12px; display: block; }
+        .upload-card h3 { font-size: 15px; margin-bottom: 4px; }
+        .upload-card p { font-size: 12px; color: var(--text-faint); font-weight: 700; }
 
-  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .field { display: flex; flex-direction: column; gap: 6px; }
-  .field.full { grid-column: span 2; }
-  .field label {
-    font-size: 11px; font-weight: 700; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.06em;
-  }
-  .field input[type="text"], .field select {
-    font-family: var(--font-main); font-size: 13px; color: var(--text); font-weight: 700;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 8px 10px; outline: none; width: 100%;
-  }
+        /* Panel Styling */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
 
-  .slider-row { display: flex; align-items: center; gap: 10px; }
-  .slider-row input[type="range"] {
-    flex: 1; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px;
-  }
-  .slider-row input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent);
-  }
-  .slider-val { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-muted); min-width: 32px; text-align: right; }
+        .panel-section { padding: 20px; border-bottom: 1px solid var(--border); }
+        .panel-section:last-child { border-bottom: none; }
+        .section-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: block; }
 
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
-  .toggle-label { font-size: 13px; font-weight: 700; color: var(--text); }
+        /* Form Elements */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .field { display: flex; flex-direction: column; gap: 8px; }
+        .field.full { grid-column: span 2; }
+        .field label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
 
-  .switch { position: relative; display: inline-block; width: 42px; height: 24px; }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .switch-track { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 24px; transition: .2s; }
-  .switch-track:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
-  .switch input:checked + .switch-track { background: var(--accent); }
-  .switch input:checked + .switch-track:before { transform: translateX(18px); }
+        input[type="text"], select {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-main);
+            font-size: 14px;
+            color: var(--text);
+            outline: none;
+        }
 
-  .color-btn-group { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
-  .color-btn {
-    flex: 1; padding: 8px; border-radius: var(--radius-sm); font-family: var(--font-main);
-    font-size: 12px; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border);
-    background: var(--surface2); color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px;
-  }
-  .color-btn.active { border-color: var(--accent); color: var(--text); background: var(--surface); }
-  .color-btn .swatch { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+        /* Sliders */
+        .slider-box { display: flex; align-items: center; gap: 12px; }
+        input[type="range"] {
+            flex: 1; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--text); cursor: pointer;
+        }
+        .val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); min-width: 30px; text-align: right; }
 
-  .filter-grid { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 8px; }
-  .filter-card { flex-shrink: 0; width: 72px; cursor: pointer; text-align: center; }
-  .filter-card .preview { height: 56px; border-radius: 10px; border: 2px solid transparent; background-size: cover; transition: 0.2s; }
-  .filter-card.active .preview { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
-  .filter-card .label { font-size: 11px; font-weight: 700; margin-top: 6px; color: var(--text); }
+        /* Switches */
+        .row { display: flex; justify-content: space-between; align-items: center; }
+        .switch { position: relative; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 34px; transition: .3s; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+        input:checked + .slider { background: var(--text); }
+        input:checked + .slider:before { transform: translateX(18px); }
 
-  #dl-btn {
-    width: 100%; padding: 14px; background: var(--accent); color: var(--accent-fg);
-    border: none; border-radius: var(--radius); font-family: var(--font-main);
-    font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.15s; margin-bottom: 16px;
-  }
-  #dl-btn:disabled { background: var(--border); color: var(--text-faint); cursor: not-allowed; }
+        /* Filter Strip */
+        .filter-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+        .filter-item { flex: 0 0 70px; text-align: center; cursor: pointer; }
+        .filter-thumb { width: 70px; height: 55px; border-radius: 8px; border: 2px solid transparent; margin-bottom: 6px; background: #ddd; transition: 0.2s; }
+        .filter-item.active .filter-thumb { border-color: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+        .filter-item span { font-size: 11px; color: var(--text); display: block; }
 
-  .preview-wrap {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); overflow: hidden; display: none;
-  }
-  canvas { width: 100%; height: auto; display: block; }
-</style>
+        /* Action Button */
+        #download-btn {
+            width: 100%; background: var(--accent); color: var(--accent-fg);
+            padding: 16px; border-radius: var(--radius); border: none;
+            font-family: var(--font-main); font-size: 15px; cursor: pointer;
+            margin-top: 10px; transition: 0.2s;
+        }
+        #download-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Canvas Preview */
+        .preview-container { margin-top: 24px; display: none; }
+        canvas { width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); display: block; }
+    </style>
 </head>
 <body>
-<div class="app">
-  <div class="header">
-    <div class="header-text">
-      <h1>Photo Watermarker</h1>
-      <p>BY COMFY</p>
-    </div>
-    <button id="dark-mode-btn">
-      <span id="dm-label">Dark</span>
-    </button>
-  </div>
 
-  <div class="drop-zone" id="drop-zone">
-    <div class="icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-      </svg>
-    </div>
-    <div class="label">Click or drag & drop a photo</div>
-    <div class="sublabel">PNG, JPG, WEBP SUPPORTED</div>
-    <input type="file" id="fileInput" accept="image/*" style="display:none">
-    <div id="status-text"></div>
-  </div>
-
-  <button id="dl-btn" disabled>Download image</button>
-
-  <div class="panel">
-    <div class="panel-section">
-      <div class="section-title">Watermark</div>
-      <div class="field-grid">
-        <div class="field"><label>Text</label><input type="text" id="wText" value="CMFY"></div>
-        <div class="field"><label>Color</label>
-          <select id="wColor">
-            <option value="white">White</option>
-            <option value="black">Black</option>
-          </select>
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>Photo Watermarker</h1>
+            <p>BY COMFY</p>
         </div>
-        <div class="field">
-          <label>Size &nbsp;<span class="slider-val" id="wSizeVal">4%</span></label>
-          <div class="slider-row"><input type="range" id="wSize" min="1" max="20" value="4"></div>
-        </div>
-        <div class="field">
-          <label>Opacity &nbsp;<span class="slider-val" id="wOpacityVal">0.9</span></label>
-          <div class="slider-row"><input type="range" id="wOpacity" min="0.1" max="1" step="0.1" value="0.9"></div>
-        </div>
-        <div class="field full">
-          <label>Position</label>
-          <select id="wPos">
-            <option value="bottom-right">Bottom right</option>
-            <option value="bottom-left">Bottom left</option>
-            <option value="top-right">Top right</option>
-            <option value="top-left">Top left</option>
-          </select>
-        </div>
-      </div>
+        <button id="dark-mode-toggle">Dark</button>
     </div>
 
-    <div class="panel-section">
-      <div class="toggle-row">
-        <div class="toggle-label">Photo border</div>
-        <label class="switch">
-          <input type="checkbox" id="borderToggle">
-          <span class="switch-track"></span>
-        </label>
-      </div>
-      <div id="border-options" style="display:none;">
-        <div class="color-btn-group">
-          <button class="color-btn active" data-color="white"><span class="swatch" style="background:#fff"></span>White</button>
-          <button class="color-btn" data-color="black"><span class="swatch" style="background:#000"></span>Black</button>
+    <div class="upload-card" id="drop-zone">
+        <span class="icon">📸</span>
+        <h3>Click or drag & drop a photo</h3>
+        <p>PNG, JPG, WEBP SUPPORTED</p>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
+    </div>
+
+    <div class="panel">
+        <div class="panel-section">
+            <span class="section-label">Watermark</span>
+            <div class="grid">
+                <div class="field full">
+                    <label>Text</label>
+                    <input type="text" id="wText" value="CMFY">
+                </div>
+                <div class="field">
+                    <label>Size (%) <span class="val" id="sizeVal">4%</span></label>
+                    <input type="range" id="wSize" min="1" max="20" value="4">
+                </div>
+                <div class="field">
+                    <label>Opacity <span class="val" id="opVal">0.9</span></label>
+                    <input type="range" id="wOpacity" min="0.1" max="1" step="0.1" value="0.9">
+                </div>
+            </div>
         </div>
-      </div>
+
+        <div class="panel-section">
+            <div class="row">
+                <span style="font-size: 14px;">Photo border</span>
+                <label class="switch">
+                    <input type="checkbox" id="borderToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <span class="section-label">Film (VSCO Kodak)</span>
+            <div class="filter-strip" id="filterStrip"></div>
+        </div>
     </div>
 
-    <div class="panel-section">
-      <div class="section-title">Film (VSCO Kodak)</div>
-      <div id="filter-grid" class="filter-grid"></div>
-    </div>
-  </div>
+    <button id="download-btn" disabled>Download Image</button>
 
-  <div class="preview-wrap" id="preview-wrap">
-    <canvas id="mainCanvas"></canvas>
-  </div>
+    <div class="preview-container" id="previewWrap">
+        <canvas id="mainCanvas"></canvas>
+    </div>
 </div>
 
 <script>
-  const fileInput = document.getElementById('fileInput');
-  const dropZone = document.getElementById('drop-zone');
-  const canvas = document.getElementById('mainCanvas');
-  const ctx = canvas.getContext('2d');
-  const dlBtn = document.getElementById('dl-btn');
-  const statusText = document.getElementById('status-text');
-  const previewWrap = document.getElementById('preview-wrap');
-  const borderToggle = document.getElementById('borderToggle');
-  const borderOptions = document.getElementById('border-options');
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('drop-zone');
+    const dlBtn = document.getElementById('download-btn');
+    
+    let img = null;
+    let currentFilter = 'none';
 
-  let img = null;
-  let currentFilter = 'none';
-  let borderColor = 'white';
-  let isDark = false;
-
-  // Dark Mode Toggle
-  document.getElementById('dark-mode-btn').onclick = () => {
-    isDark = !isDark;
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : '');
-    document.getElementById('dm-label').textContent = isDark ? 'Light' : 'Dark';
-  };
-
-  // Border Setup
-  borderToggle.onchange = () => {
-    borderOptions.style.display = borderToggle.checked ? 'block' : 'none';
-    draw();
-  };
-  document.querySelectorAll('.color-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      borderColor = btn.dataset.color;
-      draw();
+    // Film Presets Logic
+    const filmPresets = {
+        none: { name: 'None', color: '#eeeeee' },
+        kp4: { name: 'KP4', color: '#f5e0d0', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.1; d[i+2]*=0.9; } } },
+        kg200: { name: 'KG200', color: '#f5e8c0', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.15; d[i+2]*=0.8; } } },
+        ka: { name: 'KA', color: '#b0d8f0', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i+1]*=1.1; d[i+2]*=1.15; } } }
     };
-  });
 
-  // File Handling
-  dropZone.onclick = () => fileInput.click();
-  fileInput.onchange = (e) => {
-    if (e.target.files.length) handleFile(e.target.files[0]);
-  };
-  function handleFile(file) {
-    statusText.textContent = 'Loading...';
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      img = new Image();
-      img.onload = draw;
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
+    function init() {
+        // Create filter buttons
+        const strip = document.getElementById('filterStrip');
+        Object.keys(filmPresets).forEach(key => {
+            const item = document.createElement('div');
+            item.className = `filter-item ${key === currentFilter ? 'active' : ''}`;
+            item.innerHTML = `<div class="filter-thumb" style="background:${filmPresets[key].color}"></div><span>${filmPresets[key].name}</span>`;
+            item.onclick = () => {
+                currentFilter = key;
+                document.querySelectorAll('.filter-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                draw();
+            };
+            strip.appendChild(item);
+        });
 
-  // Filter Presets
-  const filmPresets = {
-    none: { name: 'None', previewBg: '#eee' },
-    kp4: { name: 'KP4', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.1; d[i+2]*=0.9; } } },
-    kg200: { name: 'KG200', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.15; d[i+1]*=1.05; d[i+2]*=0.8; } } },
-    ka: { name: 'Ektachrome', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i+1]*=1.1; d[i+2]*=1.2; } } }
-  };
-
-  function renderFilters() {
-    const container = document.getElementById('filter-grid');
-    Object.keys(filmPresets).forEach(key => {
-      const f = filmPresets[key];
-      const card = document.createElement('div');
-      card.className = `filter-card ${key === currentFilter ? 'active' : ''}`;
-      card.innerHTML = `<div class="preview" style="background:${f.previewBg || '#ccc'}"></div><div class="label">${f.name}</div>`;
-      card.onclick = () => { currentFilter = key; renderFilters(); draw(); };
-      container.appendChild(card);
-    });
-  }
-
-  // Draw Function
-  function draw() {
-    if (!img) return;
-
-    const borderPct = borderToggle.checked ? 0.08 : 0;
-    const borderPx = Math.round(Math.min(img.width, img.height) * borderPct);
-
-    canvas.width = img.width + (borderPx * 2);
-    canvas.height = img.height + (borderPx * 2);
-
-    ctx.fillStyle = borderColor === 'black' ? '#111' : '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, borderPx, borderPx);
-
-    // Apply Filter
-    if (currentFilter !== 'none') {
-      let idata = ctx.getImageData(borderPx, borderPx, img.width, img.height);
-      filmPresets[currentFilter].grade(idata.data);
-      ctx.putImageData(idata, borderPx, borderPx);
+        // Event Listeners
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+        document.querySelectorAll('input').forEach(el => el.oninput = draw);
+        document.getElementById('dark-mode-toggle').onclick = toggleDark;
     }
 
-    // --- WATERMARK ---
-    const text = document.getElementById('wText').value;
-    const size = document.getElementById('wSize').value;
-    const opacity = document.getElementById('wOpacity').value;
-    const pos = document.getElementById('wPos').value;
-    const color = document.getElementById('wColor').value;
+    function toggleDark() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.documentElement.setAttribute('data-theme', isDark ? '' : 'dark');
+        document.getElementById('dark-mode-toggle').textContent = isDark ? 'Dark' : 'Light';
+    }
 
-    const fontSize = Math.round(canvas.width * (size / 100));
-    // Use the Bold Custom Font for the canvas
-    ctx.font = `700 ${fontSize}px AGBookBold, sans-serif`; 
-    ctx.fillStyle = color === 'white' ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`;
-    ctx.textBaseline = 'middle';
+    function handleFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            img = new Image();
+            img.onload = draw;
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
 
-    const margin = canvas.width * 0.04;
-    let x, y;
-    if (pos.includes('right')) { ctx.textAlign = 'right'; x = canvas.width - margin; }
-    else { ctx.textAlign = 'left'; x = margin; }
-    if (pos.includes('bottom')) { y = canvas.height - margin; }
-    else { y = margin; }
+    function draw() {
+        if (!img) return;
 
-    ctx.fillText(text, x, y);
+        const borderOn = document.getElementById('borderToggle').checked;
+        const borderPx = borderOn ? Math.round(Math.min(img.width, img.height) * 0.08) : 0;
 
-    previewWrap.style.display = 'block';
-    dlBtn.disabled = false;
-    statusText.textContent = 'Ready';
-  }
+        canvas.width = img.width + (borderPx * 2);
+        canvas.height = img.height + (borderPx * 2);
 
-  // Input Listeners
-  document.querySelectorAll('input, select').forEach(el => {
-    el.oninput = () => {
-      const val = document.getElementById(el.id + 'Val');
-      if (val) val.textContent = el.id === 'wOpacity' ? el.value : el.value + '%';
-      draw();
+        // Draw Surface
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, borderPx, borderPx);
+
+        // Apply Grade
+        if (currentFilter !== 'none') {
+            let idata = ctx.getImageData(borderPx, borderPx, img.width, img.height);
+            filmPresets[currentFilter].grade(idata.data);
+            ctx.putImageData(idata, borderPx, borderPx);
+        }
+
+        // --- WATERMARK ---
+        const text = document.getElementById('wText').value;
+        const sizePct = document.getElementById('wSize').value;
+        const opacity = document.getElementById('wOpacity').value;
+        
+        document.getElementById('sizeVal').textContent = sizePct + '%';
+        document.getElementById('opVal').textContent = opacity;
+
+        const fontSize = Math.round(canvas.width * (sizePct / 100));
+        ctx.font = `700 ${fontSize}px AGBookBold, sans-serif`;
+        ctx.fillStyle = `rgba(0,0,0,${opacity})`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+
+        const margin = canvas.width * 0.04;
+        ctx.fillText(text, canvas.width - margin, canvas.height - margin);
+
+        document.getElementById('previewWrap').style.display = 'block';
+        dlBtn.disabled = false;
+    }
+
+    dlBtn.onclick = () => {
+        const link = document.createElement('a');
+        link.download = 'watermarked-photo.png';
+        link.href = canvas.toDataURL();
+        link.click();
     };
-  });
 
-  dlBtn.onclick = () => {
-    const a = document.createElement('a');
-    a.download = 'comfy-photo.png';
-    a.href = canvas.toDataURL();
-    a.click();
-  };
-
-  // Redraw when fonts finish loading
-  document.fonts.ready.then(() => { if (img) draw(); });
-  renderFilters();
+    // Ensure font is ready before first draw
+    document.fonts.ready.then(() => { if(img) draw(); });
+    init();
 </script>
 </body>
 </html>
