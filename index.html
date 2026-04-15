@@ -28,7 +28,7 @@
     --accent-fg: #ffffff;
     --radius: 10px;
     --radius-sm: 6px;
-    /* Main UI Font set to your custom Bold font */
+    /* Use your custom font as the primary UI font */
     --font-main: 'AGBookBold', 'DM Sans', sans-serif;
   }
 
@@ -65,8 +65,8 @@
     align-items: flex-start;
     justify-content: space-between;
   }
-  .header-text h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
-  .header-text p { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-weight: 700; opacity: 0.8; }
+  .header-text h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; color: var(--text); }
+  .header-text p { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-weight: 700; }
 
   #dark-mode-btn {
     display: flex;
@@ -85,6 +85,7 @@
     flex-shrink: 0;
   }
   #dark-mode-btn:hover { border-color: var(--border-strong); color: var(--text); }
+  #dark-mode-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
 
   .drop-zone {
     border: 1.5px dashed var(--border-strong);
@@ -97,8 +98,15 @@
     margin-bottom: 16px;
   }
   .drop-zone:hover, .drop-zone.hover { border-color: var(--accent); background: var(--surface2); }
-  .drop-zone .label { font-size: 15px; font-weight: 700; color: var(--text); }
+  .drop-zone .icon {
+    width: 40px; height: 40px; margin: 0 auto 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  }
+  .drop-zone .icon svg { width: 20px; height: 20px; stroke: var(--text-muted); }
+  .drop-zone .label { font-size: 14px; font-weight: 700; color: var(--text); }
   .drop-zone .sublabel { font-size: 12px; color: var(--text-faint); margin-top: 4px; font-weight: 700; }
+  #status-text { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-muted); margin-top: 10px; }
 
   .panel {
     background: var(--surface);
@@ -108,28 +116,63 @@
     margin-bottom: 16px;
   }
   .panel-section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  .panel-section:last-child { border-bottom: none; }
   .section-title {
     font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--text-faint); margin-bottom: 12px;
+    letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 12px;
   }
 
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: span 2; }
   .field label {
     font-size: 11px; font-weight: 700; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 0.06em;
   }
   .field input[type="text"], .field select {
-    font-family: var(--font-main); font-size: 14px; font-weight: 700; color: var(--text);
+    font-family: var(--font-main); font-size: 13px; color: var(--text); font-weight: 700;
     background: var(--surface2); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px; outline: none; width: 100%;
+    border-radius: var(--radius-sm); padding: 8px 10px; outline: none; width: 100%;
   }
 
-  .toggle-label { font-size: 14px; font-weight: 700; color: var(--text); }
-  
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-row input[type="range"] {
+    flex: 1; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px;
+  }
+  .slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent);
+  }
+  .slider-val { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-muted); min-width: 32px; text-align: right; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+  .toggle-label { font-size: 13px; font-weight: 700; color: var(--text); }
+
+  .switch { position: relative; display: inline-block; width: 42px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch-track { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 24px; transition: .2s; }
+  .switch-track:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .switch-track { background: var(--accent); }
+  .switch input:checked + .switch-track:before { transform: translateX(18px); }
+
+  .color-btn-group { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .color-btn {
+    flex: 1; padding: 8px; border-radius: var(--radius-sm); font-family: var(--font-main);
+    font-size: 12px; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border);
+    background: var(--surface2); color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .color-btn.active { border-color: var(--accent); color: var(--text); background: var(--surface); }
+  .color-btn .swatch { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+
+  .filter-grid { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 8px; }
+  .filter-card { flex-shrink: 0; width: 72px; cursor: pointer; text-align: center; }
+  .filter-card .preview { height: 56px; border-radius: 10px; border: 2px solid transparent; background-size: cover; transition: 0.2s; }
+  .filter-card.active .preview { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
+  .filter-card .label { font-size: 11px; font-weight: 700; margin-top: 6px; color: var(--text); }
+
   #dl-btn {
     width: 100%; padding: 14px; background: var(--accent); color: var(--accent-fg);
     border: none; border-radius: var(--radius); font-family: var(--font-main);
-    font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 16px;
-    transition: opacity 0.15s;
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.15s; margin-bottom: 16px;
   }
   #dl-btn:disabled { background: var(--border); color: var(--text-faint); cursor: not-allowed; }
 
@@ -147,13 +190,21 @@
       <h1>Photo Watermarker</h1>
       <p>BY COMFY</p>
     </div>
-    <button id="dark-mode-btn">Dark</button>
+    <button id="dark-mode-btn">
+      <span id="dm-label">Dark</span>
+    </button>
   </div>
 
   <div class="drop-zone" id="drop-zone">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </div>
     <div class="label">Click or drag & drop a photo</div>
-    <div class="sublabel">PNG, JPG, WEBP</div>
+    <div class="sublabel">PNG, JPG, WEBP SUPPORTED</div>
     <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <div id="status-text"></div>
   </div>
 
   <button id="dl-btn" disabled>Download image</button>
@@ -161,20 +212,23 @@
   <div class="panel">
     <div class="panel-section">
       <div class="section-title">Watermark</div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <div class="field" style="grid-column: span 2;">
-          <label>Text</label>
-          <input type="text" id="wText" value="CMFY">
+      <div class="field-grid">
+        <div class="field"><label>Text</label><input type="text" id="wText" value="CMFY"></div>
+        <div class="field"><label>Color</label>
+          <select id="wColor">
+            <option value="white">White</option>
+            <option value="black">Black</option>
+          </select>
         </div>
         <div class="field">
-          <label>Size (%)</label>
-          <input type="range" id="wSize" min="1" max="25" value="4">
+          <label>Size &nbsp;<span class="slider-val" id="wSizeVal">4%</span></label>
+          <div class="slider-row"><input type="range" id="wSize" min="1" max="20" value="4"></div>
         </div>
         <div class="field">
-          <label>Opacity</label>
-          <input type="range" id="wOpacity" min="0.1" max="1" step="0.1" value="0.9">
+          <label>Opacity &nbsp;<span class="slider-val" id="wOpacityVal">0.9</span></label>
+          <div class="slider-row"><input type="range" id="wOpacity" min="0.1" max="1" step="0.1" value="0.9"></div>
         </div>
-        <div class="field" style="grid-column: span 2;">
+        <div class="field full">
           <label>Position</label>
           <select id="wPos">
             <option value="bottom-right">Bottom right</option>
@@ -185,10 +239,26 @@
         </div>
       </div>
     </div>
-    
+
     <div class="panel-section">
+      <div class="toggle-row">
         <div class="toggle-label">Photo border</div>
-        <input type="checkbox" id="borderToggle">
+        <label class="switch">
+          <input type="checkbox" id="borderToggle">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div id="border-options" style="display:none;">
+        <div class="color-btn-group">
+          <button class="color-btn active" data-color="white"><span class="swatch" style="background:#fff"></span>White</button>
+          <button class="color-btn" data-color="black"><span class="swatch" style="background:#000"></span>Black</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Film (VSCO Kodak)</div>
+      <div id="filter-grid" class="filter-grid"></div>
     </div>
   </div>
 
@@ -203,16 +273,44 @@
   const canvas = document.getElementById('mainCanvas');
   const ctx = canvas.getContext('2d');
   const dlBtn = document.getElementById('dl-btn');
+  const statusText = document.getElementById('status-text');
   const previewWrap = document.getElementById('preview-wrap');
+  const borderToggle = document.getElementById('borderToggle');
+  const borderOptions = document.getElementById('border-options');
 
   let img = null;
+  let currentFilter = 'none';
+  let borderColor = 'white';
+  let isDark = false;
 
-  // Trigger file select
+  // Dark Mode Toggle
+  document.getElementById('dark-mode-btn').onclick = () => {
+    isDark = !isDark;
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : '');
+    document.getElementById('dm-label').textContent = isDark ? 'Light' : 'Dark';
+  };
+
+  // Border Setup
+  borderToggle.onchange = () => {
+    borderOptions.style.display = borderToggle.checked ? 'block' : 'none';
+    draw();
+  };
+  document.querySelectorAll('.color-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      borderColor = btn.dataset.color;
+      draw();
+    };
+  });
+
+  // File Handling
   dropZone.onclick = () => fileInput.click();
-  fileInput.onchange = (e) => handleFile(e.target.files[0]);
-
+  fileInput.onchange = (e) => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  };
   function handleFile(file) {
-    if (!file) return;
+    statusText.textContent = 'Loading...';
     const reader = new FileReader();
     reader.onload = (e) => {
       img = new Image();
@@ -222,79 +320,93 @@
     reader.readAsDataURL(file);
   }
 
-  // Update on any input change
-  document.querySelectorAll('input, select').forEach(el => {
-    el.oninput = draw;
-  });
+  // Filter Presets
+  const filmPresets = {
+    none: { name: 'None', previewBg: '#eee' },
+    kp4: { name: 'KP4', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.1; d[i+2]*=0.9; } } },
+    kg200: { name: 'KG200', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.15; d[i+1]*=1.05; d[i+2]*=0.8; } } },
+    ka: { name: 'Ektachrome', grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i+1]*=1.1; d[i+2]*=1.2; } } }
+  };
 
+  function renderFilters() {
+    const container = document.getElementById('filter-grid');
+    Object.keys(filmPresets).forEach(key => {
+      const f = filmPresets[key];
+      const card = document.createElement('div');
+      card.className = `filter-card ${key === currentFilter ? 'active' : ''}`;
+      card.innerHTML = `<div class="preview" style="background:${f.previewBg || '#ccc'}"></div><div class="label">${f.name}</div>`;
+      card.onclick = () => { currentFilter = key; renderFilters(); draw(); };
+      container.appendChild(card);
+    });
+  }
+
+  // Draw Function
   function draw() {
     if (!img) return;
 
-    // Check for border
-    const borderOn = document.getElementById('borderToggle').checked;
-    const borderPx = borderOn ? Math.round(Math.min(img.width, img.height) * 0.08) : 0;
+    const borderPct = borderToggle.checked ? 0.08 : 0;
+    const borderPx = Math.round(Math.min(img.width, img.height) * borderPct);
 
     canvas.width = img.width + (borderPx * 2);
     canvas.height = img.height + (borderPx * 2);
 
-    // Draw Background/Border
-    ctx.fillStyle = "white";
+    ctx.fillStyle = borderColor === 'black' ? '#111' : '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw Image
     ctx.drawImage(img, borderPx, borderPx);
 
-    // --- WATERMARK LOGIC ---
+    // Apply Filter
+    if (currentFilter !== 'none') {
+      let idata = ctx.getImageData(borderPx, borderPx, img.width, img.height);
+      filmPresets[currentFilter].grade(idata.data);
+      ctx.putImageData(idata, borderPx, borderPx);
+    }
+
+    // --- WATERMARK ---
     const text = document.getElementById('wText').value;
-    const sizePct = document.getElementById('wSize').value;
+    const size = document.getElementById('wSize').value;
     const opacity = document.getElementById('wOpacity').value;
     const pos = document.getElementById('wPos').value;
+    const color = document.getElementById('wColor').value;
 
-    const fontSize = Math.round(canvas.width * (sizePct / 100));
-    
-    // Explicitly using the Bold Custom Font for the watermark
+    const fontSize = Math.round(canvas.width * (size / 100));
+    // Use the Bold Custom Font for the canvas
     ctx.font = `700 ${fontSize}px AGBookBold, sans-serif`; 
-    ctx.fillStyle = `rgba(0,0,0,${opacity})`; // Defaulting to black for the "CMFY" look
+    ctx.fillStyle = color === 'white' ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`;
     ctx.textBaseline = 'middle';
 
     const margin = canvas.width * 0.04;
     let x, y;
-
-    if (pos === 'bottom-right') {
-      ctx.textAlign = 'right';
-      x = canvas.width - margin;
-      y = canvas.height - margin;
-    } else if (pos === 'bottom-left') {
-      ctx.textAlign = 'left';
-      x = margin;
-      y = canvas.height - margin;
-    } else if (pos === 'top-right') {
-      ctx.textAlign = 'right';
-      x = canvas.width - margin;
-      y = margin;
-    } else {
-      ctx.textAlign = 'left';
-      x = margin;
-      y = margin;
-    }
+    if (pos.includes('right')) { ctx.textAlign = 'right'; x = canvas.width - margin; }
+    else { ctx.textAlign = 'left'; x = margin; }
+    if (pos.includes('bottom')) { y = canvas.height - margin; }
+    else { y = margin; }
 
     ctx.fillText(text, x, y);
 
     previewWrap.style.display = 'block';
     dlBtn.disabled = false;
+    statusText.textContent = 'Ready';
   }
 
+  // Input Listeners
+  document.querySelectorAll('input, select').forEach(el => {
+    el.oninput = () => {
+      const val = document.getElementById(el.id + 'Val');
+      if (val) val.textContent = el.id === 'wOpacity' ? el.value : el.value + '%';
+      draw();
+    };
+  });
+
   dlBtn.onclick = () => {
-    const link = document.createElement('a');
-    link.download = 'watermarked-photo.png';
-    link.href = canvas.toDataURL();
-    link.click();
+    const a = document.createElement('a');
+    a.download = 'comfy-photo.png';
+    a.href = canvas.toDataURL();
+    a.click();
   };
 
-  // Re-draw once fonts are loaded
-  document.fonts.ready.then(() => {
-    if (img) draw();
-  });
+  // Redraw when fonts finish loading
+  document.fonts.ready.then(() => { if (img) draw(); });
+  renderFilters();
 </script>
 </body>
 </html>
