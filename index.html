@@ -6,19 +6,6 @@
 <title>Photo Watermarker</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  @font-face {
-    font-family: 'AG Book Rounded';
-    src: url('https://iamsuperon.github.io/Watermark_Filter_CMFY/AG%20Book%20Rounded%20Bold.otf') format('opentype');
-    font-weight: bold;
-    font-style: normal;
-  }
-  @font-face {
-    font-family: 'AG Book Rounded';
-    src: url('https://iamsuperon.github.io/Watermark_Filter_CMFY/AG%20Book%20Rounded%20Medium.otf') format('opentype');
-    font-weight: normal;
-    font-style: normal;
-  }
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #f5f3ef;
@@ -483,9 +470,6 @@
   let currentFilter = 'none';
   let isFlipped = false;
 
-  // Pre-load AG Book Rounded so canvas uses it from the first draw
-  document.fonts.load("bold 16px 'AG Book Rounded'").then(() => { if (img) draw(); });
-
   // ── Crop state ──
   let cropMode = false;
   let cropRatioLocked = false;
@@ -554,7 +538,7 @@
     const reader = new FileReader();
     reader.onload = e => {
       img = new Image();
-      img.onload = () => { document.fonts.ready.then(() => draw()); };
+      img.onload = draw;
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
@@ -679,7 +663,7 @@
   // Draws watermark on top of whatever is already on the given canvas/context.
   function drawWatermark(targetCanvas, targetCtx, imgW, imgH, borderPx) {
     const fontSize = targetCanvas.width * (document.getElementById('wSize').value / 100);
-    targetCtx.font = `bold ${fontSize}px 'AG Book Rounded', sans-serif`;
+    targetCtx.font = `bold ${fontSize}px sans-serif`;
     targetCtx.textBaseline = 'middle';
     const marginX = imgW * 0.03 + borderPx;
     const marginY = imgH * 0.03 + borderPx;
