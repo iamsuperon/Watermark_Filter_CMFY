@@ -6,6 +6,19 @@
 <title>Photo Watermarker</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* --- CUSTOM FONT LOADING --- */
+  @font-face {
+    font-family: 'AGBook';
+    src: url('AG Book Rounded Medium.otf') format('opentype');
+    font-weight: 500;
+  }
+
+  @font-face {
+    font-family: 'AGBook';
+    src: url('AG Book Rounded Bold.otf') format('opentype');
+    font-weight: 700;
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -21,6 +34,7 @@
     --accent-fg: #ffffff;
     --radius: 10px;
     --radius-sm: 6px;
+    --font-main: 'AGBook', 'DM Sans', sans-serif;
   }
 
   [data-theme="dark"] {
@@ -37,7 +51,7 @@
   }
 
   body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--font-main);
     background: var(--bg);
     min-height: 100vh;
     display: flex;
@@ -55,8 +69,8 @@
     align-items: flex-start;
     justify-content: space-between;
   }
-  .header-text h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.4px; color: var(--text); }
-  .header-text p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .header-text h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; color: var(--text); }
+  .header-text p { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 
   #dark-mode-btn {
     display: flex;
@@ -66,7 +80,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 7px 12px;
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--font-main);
     font-size: 12px;
     font-weight: 500;
     color: var(--text-muted);
@@ -95,7 +109,7 @@
     border-radius: 10px; display: flex; align-items: center; justify-content: center;
   }
   .drop-zone .icon svg { width: 20px; height: 20px; stroke: var(--text-muted); }
-  .drop-zone .label { font-size: 14px; font-weight: 500; color: var(--text); }
+  .drop-zone .label { font-size: 14px; font-weight: 700; color: var(--text); }
   .drop-zone .sublabel { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
   #status-text { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); margin-top: 10px; }
 
@@ -110,7 +124,7 @@
   .panel-section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
   .panel-section:last-child { border-bottom: none; }
   .section-title {
-    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 12px;
   }
 
@@ -122,7 +136,7 @@
     text-transform: uppercase; letter-spacing: 0.06em;
   }
   .field input[type="text"], .field select {
-    font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text);
+    font-family: var(--font-main); font-size: 13px; color: var(--text);
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: var(--radius-sm); padding: 8px 10px; outline: none;
     transition: border-color 0.15s, background 0.2s; width: 100%;
@@ -147,7 +161,7 @@
   .slider-val { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); min-width: 32px; text-align: right; }
 
   .toggle-row { display: flex; align-items: center; justify-content: space-between; }
-  .toggle-info .toggle-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .toggle-info .toggle-label { font-size: 13px; font-weight: 700; color: var(--text); }
   .toggle-info .toggle-sub { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 
   .btn-secondary {
@@ -155,7 +169,7 @@
     border: 1px solid var(--border);
     padding: 8px 12px;
     border-radius: var(--radius-sm);
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--font-main);
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -179,10 +193,9 @@
   .switch input:checked + .switch-track { background: var(--accent); }
   .switch input:checked + .switch-track:before { transform: translateX(18px); }
 
-  /* Border color button group */
   .color-btn-group { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
   .color-btn {
-    flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif;
+    flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); font-family: var(--font-main);
     font-size: 12px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border);
     display: flex; align-items: center; justify-content: center; gap: 7px;
     transition: all 0.15s; background: var(--surface2); color: var(--text-muted);
@@ -215,8 +228,8 @@
 
   #dl-btn {
     width: 100%; padding: 13px; background: var(--accent); color: var(--accent-fg);
-    border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif;
-    font-size: 14px; font-weight: 600; cursor: pointer; letter-spacing: -0.1px;
+    border: none; border-radius: var(--radius); font-family: var(--font-main);
+    font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: -0.1px;
     transition: all 0.15s;
   }
   #dl-btn:disabled { background: var(--border); color: var(--text-faint); cursor: not-allowed; }
@@ -310,7 +323,6 @@
       </div>
 
       <div id="border-options-wrap" style="display: none;">
-        <!-- Border color picker -->
         <div class="color-btn-group">
           <button class="color-btn active" id="border-color-white" data-color="white">
             <span class="swatch" style="background:#ffffff;"></span>
@@ -399,7 +411,6 @@
   let isDark = false;
   let borderColor = 'white';
 
-  // Dark mode
   darkModeBtn.addEventListener('click', () => {
     isDark = !isDark;
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : '');
@@ -408,7 +419,6 @@
     document.getElementById('dm-label').textContent = isDark ? 'Light' : 'Dark';
   });
 
-  // Border color buttons
   document.querySelectorAll('.color-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
@@ -485,11 +495,11 @@
   const filmPresets = {
     none: { name: 'None', previewBg: 'linear-gradient(135deg, #f0f0f0, #e0e0e0)' },
     kp4: { name: 'KP4', previewBg: 'linear-gradient(135deg, #f5e0d0, #d8c0a8)',
-           grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.06; d[i+1]*=1.03; d[i+2]*=0.94; } } },
+            grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.06; d[i+1]*=1.03; d[i+2]*=0.94; } } },
     kg200: { name: 'KG200', previewBg: 'linear-gradient(135deg, #f5e8c0, #e8d090)',
-             grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.12; d[i+1]*=1.06; d[i+2]*=0.85; } } },
+              grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.12; d[i+1]*=1.06; d[i+2]*=0.85; } } },
     kc25: { name: 'KC25', previewBg: 'linear-gradient(135deg, #a8d0ff, #f0b090)',
-            grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.18; d[i+1]*=1.08; d[i+2]*=1.22; } } },
+             grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i]*=1.18; d[i+1]*=1.08; d[i+2]*=1.22; } } },
     ka: { name: 'Ektachrome', previewBg: 'linear-gradient(135deg, #b0d8f0, #c8e0d8)',
           grade: (d) => { for(let i=0; i<d.length; i+=4){ d[i+1]*=1.12; d[i+2]*=1.18; } } },
     ultramax: { name: 'UltraMax', previewBg: 'linear-gradient(135deg, #f0c8a0, #d090c0)',
@@ -579,9 +589,12 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
+    // --- UPDATED FONT LOGIC ---
     const fontSize = canvas.width * (document.getElementById('wSize').value / 100);
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    // Use AGBook (Bold 700)
+    ctx.font = `700 ${fontSize}px AGBook, sans-serif`; 
     ctx.textBaseline = 'middle';
+    
     const marginX = img.width * 0.03 + borderPx;
     const marginY = img.height * 0.03 + borderPx;
     let x, y;
@@ -609,6 +622,11 @@
     a.href = canvas.toDataURL('image/png');
     a.click();
     downloadCount++;
+  });
+
+  // Re-draw once fonts are confirmed loaded by the browser
+  document.fonts.ready.then(() => {
+    if (img) draw();
   });
 
   renderFilters();
