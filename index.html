@@ -81,6 +81,18 @@
   }
   .icon-btn:hover { background: var(--surface2); border-color: var(--border-strong); }
 
+  /* Trash button danger hover */
+  .icon-btn.trash-btn:hover {
+    background: #fff0f0;
+    border-color: #f0a0a0;
+  }
+  :root[data-theme="dark"] .icon-btn.trash-btn:hover {
+    background: #2e1a1a;
+    border-color: #7a3030;
+  }
+  .icon-btn.trash-btn svg { stroke: var(--text-faint); transition: stroke 0.15s; }
+  .icon-btn.trash-btn:hover svg { stroke: #c0392b; }
+
   .drop-zone {
     border: 1.5px dashed var(--border-strong);
     border-radius: 10px;
@@ -345,6 +357,15 @@
       <p>BY COMFY</p>
     </div>
     <div class="header-actions">
+      <!-- Trash: removes the loaded image -->
+      <button class="icon-btn trash-btn" id="trash-btn" title="Remove image">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+        </svg>
+      </button>
       <button class="icon-btn" id="theme-btn" title="Toggle dark mode">🌙</button>
     </div>
   </div>
@@ -547,6 +568,7 @@
   const ctx = canvas.getContext('2d');
   const dlBtn = document.getElementById('dl-btn');
   const clearBtn = document.getElementById('clear-btn');
+  const trashBtn = document.getElementById('trash-btn');
   const statusText = document.getElementById('status-text');
   const borderToggle = document.getElementById('borderToggle');
   const borderSizeWrap = document.getElementById('border-size-wrap');
@@ -568,8 +590,7 @@
   let isDarkMode = false;
 
   // Watermark drag state
-  // Normalised position (0–1) relative to canvas, representing centre of watermark
-  let wmPos = { nx: 0.95, ny: 0.95 }; // default: bottom-right area
+  let wmPos = { nx: 0.95, ny: 0.95 };
   let wmDragMode = false;
   let wmDragging = false;
   let wmDragStart = null;
@@ -581,6 +602,45 @@
     isDarkMode = !isDarkMode;
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
     themeBtn.textContent = isDarkMode ? '☀️' : '🌙';
+  });
+
+  // ── Trash: remove image ──
+  trashBtn.addEventListener('click', () => {
+    if (!img) return;
+
+    // Exit crop mode if active
+    if (cropMode) exitCropMode();
+
+    // Clear image
+    img = null;
+
+    // Reset canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 0;
+    canvas.height = 0;
+
+    // Hide preview
+    previewWrap.style.display = 'none';
+
+    // Disable download
+    dlBtn.disabled = true;
+
+    // Clear file input so the same file can be re-selected
+    fileInput.value = '';
+
+    // Reset status
+    statusText.textContent = '';
+
+    // Reset watermark drag mode
+    wmDragMode = false;
+    dragWmBtn.classList.remove('active');
+    wmOverlay.classList.remove('active');
+    document.getElementById('drag-wm-hint').textContent = 'Enable to drag the watermark to any position on the image.';
+    wmPos = { nx: 0.95, ny: 0.95 };
+
+    // Reset flip
+    isFlipped = false;
+    flipBtn.classList.remove('active');
   });
 
   // ── Drag & Drop file ──
@@ -641,11 +701,7 @@
     if (wmDragMode) updateWmHandlePosition();
   });
 
-  // Position the overlay handle
   function updateWmHandlePosition() {
-    const rect = canvas.getBoundingClientRect();
-    const containerRect = previewWrap.getBoundingClientRect();
-    // canvas display size
     const dispW = canvas.clientWidth;
     const dispH = canvas.clientHeight;
     const px = wmPos.nx * dispW;
@@ -655,7 +711,6 @@
     wmHandleLabel.textContent = document.getElementById('wText').value || 'CMFY';
   }
 
-  // Drag handle events
   wmHandle.addEventListener('pointerdown', e => {
     if (!wmDragMode) return;
     e.preventDefault();
@@ -680,7 +735,6 @@
 
   // ── Clear / Reset ──
   clearBtn.addEventListener('click', () => {
-    // Reset all controls to defaults
     document.getElementById('wText').value = 'CMFY';
     document.getElementById('wColor').value = 'white';
     document.getElementById('wSize').value = 3;
@@ -850,7 +904,6 @@
 
     let x, y;
     if (wmDragMode) {
-      // Use normalised drag position
       x = wmPos.nx * targetCanvas.width;
       y = wmPos.ny * targetCanvas.height;
       targetCtx.textAlign = 'center';
