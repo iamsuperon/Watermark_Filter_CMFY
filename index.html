@@ -81,6 +81,19 @@
   }
   .icon-btn:hover { background: var(--surface2); border-color: var(--border-strong); }
 
+  /* Batch toggle (pill with icon + label) */
+  .icon-btn.batch-btn {
+    width: auto; padding: 0 13px; gap: 7px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    color: var(--text);
+  }
+  .batch-btn svg { width: 16px; height: 16px; stroke: currentColor; flex-shrink: 0; }
+  .icon-btn.batch-btn.active,
+  .icon-btn.batch-btn.active:hover {
+    background: var(--accent); color: var(--accent-fg); border-color: var(--accent);
+  }
+  .icon-btn.batch-btn.active:hover { opacity: 0.85; }
+
   /* Trash button danger hover */
   .icon-btn.trash-btn:hover {
     background: #fff0f0;
@@ -112,7 +125,70 @@
   .drop-zone .icon svg { width: 20px; height: 20px; stroke: var(--text-muted); }
   .drop-zone .label { font-size: 14px; font-weight: 500; color: var(--text); }
   .drop-zone .sublabel { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+  .drop-zone .paste-btn { margin: 16px auto 0; padding: 9px 14px; font-size: 13px; }
+  .drop-zone .paste-btn svg { width: 15px; height: 15px; }
   #status-text { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); margin-top: 10px; }
+
+  /* ── Batch queue ── */
+  .queue-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px 16px;
+    margin-bottom: 16px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .queue-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .queue-head .section-title { margin-bottom: 0; }
+  #queue-count { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); }
+  .queue-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 2px;
+  }
+  .queue-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    background: var(--surface2);
+    outline: none;
+    transition: border-color 0.15s, opacity 0.15s;
+  }
+  .queue-item img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .queue-item:not(.active) { opacity: 0.8; }
+  .queue-item:hover, .queue-item:focus-visible { opacity: 1; border-color: var(--border-strong); }
+  .queue-item.active { border-color: var(--accent); opacity: 1; }
+  .queue-item .q-num {
+    position: absolute; left: 6px; bottom: 6px;
+    font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace;
+    color: #fff; background: rgba(0,0,0,0.6);
+    padding: 1px 6px; border-radius: 6px;
+  }
+  .queue-remove {
+    position: absolute; top: 5px; right: 5px;
+    width: 24px; height: 24px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,0.65); color: #fff;
+    font-size: 17px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .queue-remove:hover { background: #c0392b; }
+
+  /* Lock the UI while a batch is being processed */
+  body.busy .panel, body.busy .queue-panel, body.busy .drop-zone,
+  body.busy .icon-btn.trash-btn, body.busy .batch-btn {
+    pointer-events: none; opacity: 0.6;
+  }
 
   /* ── Download + Clear row ── */
   .action-row {
@@ -237,6 +313,7 @@
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 10px; overflow: hidden; margin-bottom: 16px; display: none;
     position: relative;
+    scroll-margin-top: 16px;
   }
   #mainCanvas { width: 100%; height: auto; display: block; }
 
@@ -357,7 +434,16 @@
       <p>BY COMFY</p>
     </div>
     <div class="header-actions">
-      <!-- Trash: removes the loaded image -->
+      <!-- Batch mode toggle -->
+      <button class="icon-btn batch-btn" id="batch-btn" title="Batch mode: watermark many photos at once" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
+        </svg>
+        <span>Batch</span>
+      </button>
+      <!-- Trash: removes the loaded image(s) -->
       <button class="icon-btn trash-btn" id="trash-btn" title="Remove image">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">
           <polyline points="3 6 5 6 21 6"/>
@@ -378,10 +464,26 @@
         <polyline points="21 15 16 10 5 21"/>
       </svg>
     </div>
-    <div class="label">Click or drag & drop a photo</div>
-    <div class="sublabel">PNG, JPG, WEBP supported</div>
-    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <div class="label" id="drop-label">Click, drag & drop, or paste a photo</div>
+    <div class="sublabel">PNG, JPG, WEBP supported · Ctrl+V / ⌘V to paste</div>
+    <button type="button" class="btn-secondary paste-btn" id="paste-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+      </svg>
+      Paste from clipboard
+    </button>
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
     <div id="status-text"></div>
+  </div>
+
+  <!-- Batch queue (only visible in batch mode) -->
+  <div class="queue-panel" id="queue-panel">
+    <div class="queue-head">
+      <div class="section-title">Queue</div>
+      <span id="queue-count">0 images</span>
+    </div>
+    <div class="queue-grid" id="queue-grid"></div>
   </div>
 
   <!-- Download + Clear row (between drop zone and panels) -->
@@ -579,21 +681,34 @@
   const cropBtn = document.getElementById('crop-btn');
   const themeBtn = document.getElementById('theme-btn');
   const dragWmBtn = document.getElementById('drag-wm-btn');
+  const dragHint = document.getElementById('drag-wm-hint');
   const wmOverlay = document.getElementById('wm-overlay');
   const wmHandle = document.getElementById('wm-handle');
   const wmHandleLabel = document.getElementById('wm-handle-label');
+  const batchBtn = document.getElementById('batch-btn');
+  const pasteBtn = document.getElementById('paste-btn');
+  const dropLabel = document.getElementById('drop-label');
+  const queuePanel = document.getElementById('queue-panel');
+  const queueGrid = document.getElementById('queue-grid');
+  const queueCount = document.getElementById('queue-count');
 
-  let img = null;
+  let img = null;            // the image currently being previewed (= items[activeIndex].img)
+  let items = [];            // the queue: { id, name, img, thumb }  (single mode just holds one)
+  let activeIndex = 0;
+  let batchMode = false;
+  let batchBusy = false;
+  let uid = 0;
+  let pasteCount = 0;
   let downloadCount = 1;
   let currentFilter = 'none';
   let isFlipped = false;
-  let isDarkMode = false;
+  let isDarkMode = true;     // page starts in dark theme
 
   // Watermark drag state
   let wmPos = { nx: 0.95, ny: 0.95 };
-  let wmDragMode = false;
+  let wmDragMode = false;    // handle visible / dragging enabled
+  let wmCustom = false;      // use the dragged position instead of the Position dropdown
   let wmDragging = false;
-  let wmDragStart = null;
 
   document.fonts.load("bold 16px 'AG Book Rounded'").then(() => { if (img) draw(); });
 
@@ -604,14 +719,183 @@
     themeBtn.textContent = isDarkMode ? '☀️' : '🌙';
   });
 
-  // ── Trash: remove image ──
-  trashBtn.addEventListener('click', () => {
-    if (!img) return;
+  // ══════════════════
+  //  QUEUE / BATCH MODE
+  // ══════════════════
 
-    // Exit crop mode if active
+  function makeThumb(im, size = 160) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.fillStyle = '#3a3733';
+    g.fillRect(0, 0, size, size);
+    const s = Math.max(size / im.width, size / im.height);
+    const w = im.width * s, h = im.height * s;
+    g.drawImage(im, (size - w) / 2, (size - h) / 2, w, h);
+    return c.toDataURL('image/jpeg', 0.75);
+  }
+
+  function baseName(file, pasted) {
+    if (pasted || !file.name) return `pasted_${++pasteCount}`;
+    return file.name.replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'image';
+  }
+
+  function loadImageFile(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const im = new Image();
+      im.onload  = () => { URL.revokeObjectURL(url); resolve(im); };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not decode image')); };
+      im.src = url;
+    });
+  }
+
+  // Add one or more image files (from picker, drag & drop, or clipboard)
+  async function addFiles(fileList, opts = {}) {
+    const files = Array.from(fileList || []).filter(f => f.type && f.type.startsWith('image/'));
+    if (batchBusy) return;
+    if (!files.length) { statusText.textContent = 'No image found.'; return; }
+
+    statusText.textContent = files.length > 1 ? `Loading ${files.length} images…` : 'Loading...';
+    const entries = [];
+    let failed = 0;
+    for (const f of files) {
+      try {
+        const im = await loadImageFile(f);
+        entries.push({ id: ++uid, name: baseName(f, opts.pasted), img: im, thumb: makeThumb(im) });
+      } catch (_) { failed++; }
+    }
+    if (!entries.length) { statusText.textContent = 'Could not read that file.'; return; }
+
     if (cropMode) exitCropMode();
 
-    // Clear image
+    if (batchMode) {
+      const firstNew = items.length;
+      items.push(...entries);
+      setActive(firstNew);
+    } else if (entries.length > 1) {
+      // Several images at once → switch to batch mode automatically
+      items = entries;
+      batchMode = true;
+      applyBatchUI();
+      setActive(0);
+    } else {
+      items = [entries[0]];
+      setActive(0);
+    }
+    if (failed) statusText.textContent += ` · ${failed} skipped`;
+  }
+
+  function setActive(i) {
+    activeIndex = i;
+    img = items[i] ? items[i].img : null;
+    renderQueue();
+    if (img) draw();
+  }
+
+  function removeItem(i) {
+    if (batchBusy) return;
+    if (cropMode) exitCropMode();
+    items.splice(i, 1);
+    if (!items.length) { clearAll(); return; }
+    if (activeIndex > i) activeIndex--;
+    else if (activeIndex === i) activeIndex = Math.min(i, items.length - 1);
+    setActive(activeIndex);
+  }
+
+  function renderQueue() {
+    const show = batchMode && items.length > 0;
+    queuePanel.style.display = show ? 'block' : 'none';
+    if (!show) { queueGrid.innerHTML = ''; return; }
+    queueCount.textContent = `${items.length} image${items.length === 1 ? '' : 's'}`;
+    queueGrid.innerHTML = '';
+    items.forEach((it, i) => {
+      const el = document.createElement('div');
+      el.className = 'queue-item' + (i === activeIndex ? ' active' : '');
+      el.title = it.name;
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+
+      const t = document.createElement('img');
+      t.src = it.thumb;
+      t.alt = it.name;
+      t.draggable = false;
+
+      const num = document.createElement('span');
+      num.className = 'q-num';
+      num.textContent = i + 1;
+
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'queue-remove';
+      x.title = 'Remove from queue';
+      x.textContent = '×';
+      x.addEventListener('click', e => { e.stopPropagation(); removeItem(i); });
+
+      const select = () => {
+        if (batchBusy) return;
+        if (cropMode) exitCropMode();
+        setActive(i);
+        previewWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      el.addEventListener('click', select);
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); }
+      });
+
+      el.append(t, num, x);
+      queueGrid.appendChild(el);
+    });
+  }
+
+  function updateDownloadUI() {
+    if (batchBusy) return;
+    const n = items.length;
+    if (batchMode && n > 1) dlBtn.textContent = `Download all (${n}) as ZIP`;
+    else if (batchMode && n === 0) dlBtn.textContent = 'Download all as ZIP';
+    else dlBtn.textContent = 'Download image';
+    dlBtn.disabled = !n || cropMode;
+  }
+
+  function updateStatus() {
+    if (batchBusy) return;
+    statusText.textContent = (batchMode && items.length > 1) ? `${items.length} images ready` : 'Ready';
+  }
+
+  function applyBatchUI() {
+    batchBtn.classList.toggle('active', batchMode);
+    batchBtn.setAttribute('aria-pressed', String(batchMode));
+    trashBtn.title = batchMode ? 'Remove all images' : 'Remove image';
+    dropLabel.textContent = batchMode
+      ? 'Click, drag & drop, or paste photos'
+      : 'Click, drag & drop, or paste a photo';
+    renderQueue();
+    updateDownloadUI();
+  }
+
+  function setBatchMode(on) {
+    if (batchBusy || on === batchMode) return;
+    if (cropMode) exitCropMode();
+    if (!on && items.length > 1) {
+      const ok = confirm(`Leave batch mode?\n\nOnly the image you're previewing (#${activeIndex + 1}) will be kept. The other ${items.length - 1} will be removed from the queue.`);
+      if (!ok) return;
+      items = [items[activeIndex]];
+      activeIndex = 0;
+    }
+    batchMode = on;
+    applyBatchUI();
+    setActive(0);
+    if (!items.length) updateDownloadUI();
+  }
+
+  batchBtn.addEventListener('click', () => setBatchMode(!batchMode));
+
+  // ── Trash: remove the loaded image(s) ──
+  function clearAll() {
+    if (cropMode) exitCropMode();
+
+    items = [];
+    activeIndex = 0;
     img = null;
 
     // Reset canvas
@@ -622,25 +906,27 @@
     // Hide preview
     previewWrap.style.display = 'none';
 
-    // Disable download
-    dlBtn.disabled = true;
-
     // Clear file input so the same file can be re-selected
     fileInput.value = '';
-
-    // Reset status
     statusText.textContent = '';
 
     // Reset watermark drag mode
-    wmDragMode = false;
-    dragWmBtn.classList.remove('active');
-    wmOverlay.classList.remove('active');
-    document.getElementById('drag-wm-hint').textContent = 'Enable to drag the watermark to any position on the image.';
+    setWmDragMode(false);
+    wmCustom = false;
     wmPos = { nx: 0.95, ny: 0.95 };
 
     // Reset flip
     isFlipped = false;
     flipBtn.classList.remove('active');
+
+    renderQueue();
+    updateDownloadUI();
+  }
+
+  trashBtn.addEventListener('click', () => {
+    if (batchBusy || !items.length) return;
+    if (items.length > 1 && !confirm(`Remove all ${items.length} images from the queue?`)) return;
+    clearAll();
   });
 
   // ── Drag & Drop file ──
@@ -651,11 +937,48 @@
   zone.addEventListener('dragleave', () => zone.classList.remove('hover'));
   zone.addEventListener('drop', e => {
     zone.classList.remove('hover');
-    if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
   });
   zone.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', e => {
-    if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    if (e.target.files.length > 0) addFiles(e.target.files);
+    fileInput.value = '';   // lets you pick the same file again later
+  });
+
+  // ── Paste from clipboard (Ctrl+V / ⌘V anywhere on the page) ──
+  document.addEventListener('paste', e => {
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const files = Array.from(cd.items || [])
+      .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
+      .map(it => it.getAsFile())
+      .filter(Boolean);
+    if (!files.length) return;          // plain text paste (e.g. into the watermark text box) is left alone
+    e.preventDefault();
+    addFiles(files, { pasted: true });
+  });
+
+  // ── "Paste from clipboard" button (handy on phones / when Ctrl+V isn't an option) ──
+  pasteBtn.addEventListener('click', async e => {
+    e.stopPropagation();   // don't open the file picker
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      statusText.textContent = 'This browser can’t read the clipboard from a button. Press Ctrl+V / ⌘V instead.';
+      return;
+    }
+    try {
+      const clipItems = await navigator.clipboard.read();
+      const files = [];
+      for (const ci of clipItems) {
+        const type = ci.types.find(t => t.startsWith('image/'));
+        if (!type) continue;
+        const blob = await ci.getType(type);
+        files.push(new File([blob], 'pasted.png', { type }));
+      }
+      if (files.length) addFiles(files, { pasted: true });
+      else statusText.textContent = 'No image found on the clipboard.';
+    } catch (_) {
+      statusText.textContent = 'Clipboard access was blocked. Press Ctrl+V / ⌘V instead.';
+    }
   });
 
   flipBtn.addEventListener('click', () => {
@@ -682,23 +1005,34 @@
     });
   });
 
-  ['wText','wColor','wPos'].forEach(id => {
-    document.getElementById(id).addEventListener('input', () => {
-      wmHandleLabel.textContent = id === 'wText' ? document.getElementById('wText').value : wmHandleLabel.textContent;
-      draw();
-    });
+  ['wText','wColor'].forEach(id => {
+    document.getElementById(id).addEventListener('input', draw);
+  });
+
+  // Picking a preset position goes back to preset placement (and ends drag mode)
+  document.getElementById('wPos').addEventListener('change', () => {
+    wmCustom = false;
+    if (wmDragMode) setWmDragMode(false);
+    draw();
   });
 
   // ── Drag Watermark Mode ──
-  dragWmBtn.addEventListener('click', () => {
-    if (!img) return;
-    wmDragMode = !wmDragMode;
-    dragWmBtn.classList.toggle('active', wmDragMode);
-    wmOverlay.classList.toggle('active', wmDragMode);
-    document.getElementById('drag-wm-hint').textContent = wmDragMode
+  function setWmDragMode(on) {
+    wmDragMode = on;
+    dragWmBtn.classList.toggle('active', on);
+    wmOverlay.classList.toggle('active', on);
+    dragHint.textContent = on
       ? 'Drag the handle on the image to reposition. Click the button again to lock position.'
       : 'Enable to drag the watermark to any position on the image.';
-    if (wmDragMode) updateWmHandlePosition();
+    if (on) updateWmHandlePosition();
+  }
+
+  dragWmBtn.addEventListener('click', () => {
+    if (!img) return;
+    const on = !wmDragMode;
+    if (on) wmCustom = true;    // once dragged, the position sticks (also after locking, and for every image in a batch)
+    setWmDragMode(on);
+    if (on) draw();
   });
 
   function updateWmHandlePosition() {
@@ -727,13 +1061,14 @@
     const my = e.clientY - rect.top;
     wmPos.nx = Math.max(0.02, Math.min(0.98, mx / dispW));
     wmPos.ny = Math.max(0.02, Math.min(0.98, my / dispH));
+    wmCustom = true;
     updateWmHandlePosition();
     draw();
   });
 
   wmHandle.addEventListener('pointerup', () => { wmDragging = false; });
 
-  // ── Clear / Reset ──
+  // ── Clear / Reset (settings only, keeps your images) ──
   clearBtn.addEventListener('click', () => {
     document.getElementById('wText').value = 'CMFY';
     document.getElementById('wColor').value = 'white';
@@ -759,25 +1094,11 @@
     document.getElementById('filterStrengthVal').textContent = '100%';
     currentFilter = 'none';
     wmPos = { nx: 0.95, ny: 0.95 };
-    wmDragMode = false;
-    dragWmBtn.classList.remove('active');
-    wmOverlay.classList.remove('active');
-    document.getElementById('drag-wm-hint').textContent = 'Enable to drag the watermark to any position on the image.';
+    wmCustom = false;
+    setWmDragMode(false);
     renderFilters();
     if (img) draw();
   });
-
-  function handleFile(file) {
-    if (!file.type.startsWith('image/')) return;
-    statusText.textContent = 'Loading...';
-    const reader = new FileReader();
-    reader.onload = e => {
-      img = new Image();
-      img.onload = () => { document.fonts.ready.then(() => draw()); };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
 
   function addGrain(imageData, intensity) {
     if (intensity <= 0) return imageData;
@@ -817,14 +1138,23 @@
     });
   }
 
-  function drawRaw(targetCanvas, targetCtx) {
-    if (!img) return;
-    const borderPct = parseInt(borderSizeInput.value) / 100;
-    const borderPx = borderToggle.checked ? Math.round(Math.min(img.width, img.height) * borderPct) : 0;
+  // ══════════════════
+  //  RENDERING
+  // ══════════════════
+
+  function getBorderPx(src) {
+    if (!borderToggle.checked) return 0;
+    return Math.round(Math.min(src.width, src.height) * (parseInt(borderSizeInput.value) / 100));
+  }
+
+  // Draws a photo + border/flip/filters/grain onto a canvas (no watermark)
+  function drawRaw(targetCanvas, targetCtx, src = img) {
+    if (!src) return;
+    const borderPx = getBorderPx(src);
     const bColor = borderColorSelect.value === 'black' ? '#000000' : '#ffffff';
 
-    targetCanvas.width  = img.width  + borderPx * 2;
-    targetCanvas.height = img.height + borderPx * 2;
+    targetCanvas.width  = src.width  + borderPx * 2;
+    targetCanvas.height = src.height + borderPx * 2;
 
     if (borderToggle.checked) {
       targetCtx.fillStyle = bColor;
@@ -836,7 +1166,7 @@
       targetCtx.translate(targetCanvas.width, 0);
       targetCtx.scale(-1, 1);
     }
-    targetCtx.drawImage(img, borderPx, borderPx);
+    targetCtx.drawImage(src, borderPx, borderPx);
 
     const strength = parseFloat(document.getElementById('filterStrength').value) / 100;
     const preset = filmPresets[currentFilter];
@@ -845,7 +1175,7 @@
     const contrastVal   = parseInt(document.getElementById('contrast').value);
 
     if ((currentFilter !== 'none' && strength > 0) || grainLevel > 0 || brightnessVal !== 0 || contrastVal !== 0) {
-      let imageData = targetCtx.getImageData(borderPx, borderPx, img.width, img.height);
+      let imageData = targetCtx.getImageData(borderPx, borderPx, src.width, src.height);
 
       if (currentFilter !== 'none' && preset.grade) {
         const original = new Uint8ClampedArray(imageData.data);
@@ -873,7 +1203,7 @@
       }
 
       if (grainLevel > 0) imageData = addGrain(imageData, grainLevel);
-      const putX = isFlipped ? (targetCanvas.width - borderPx - img.width) : borderPx;
+      const putX = isFlipped ? (targetCanvas.width - borderPx - src.width) : borderPx;
       targetCtx.putImageData(imageData, putX, borderPx);
     }
     targetCtx.restore();
@@ -903,7 +1233,7 @@
     targetCtx.fillStyle = colorStr;
 
     let x, y;
-    if (wmDragMode) {
+    if (wmCustom) {
       x = wmPos.nx * targetCanvas.width;
       y = wmPos.ny * targetCanvas.height;
       targetCtx.textAlign = 'center';
@@ -921,22 +1251,184 @@
     targetCtx.fillText(text, x, y);
   }
 
+  // Photo + effects + watermark, using the current settings
+  function renderFull(targetCanvas, targetCtx, src) {
+    drawRaw(targetCanvas, targetCtx, src);
+    drawWatermark(targetCanvas, targetCtx, src.width, src.height, getBorderPx(src));
+  }
+
   function draw() {
     if (!img) return;
-    const borderPct = parseInt(borderSizeInput.value) / 100;
-    const borderPx = borderToggle.checked ? Math.round(Math.min(img.width, img.height) * borderPct) : 0;
-
-    drawRaw(canvas, ctx);
-    drawWatermark(canvas, ctx, img.width, img.height, borderPx);
+    renderFull(canvas, ctx, img);
 
     previewWrap.style.display = 'block';
-    dlBtn.disabled = false;
-    statusText.textContent = 'Ready';
+    updateDownloadUI();
+    updateStatus();
 
     if (wmDragMode) updateWmHandlePosition();
   }
 
+  // ══════════════════
+  //  DOWNLOAD
+  // ══════════════════
+
+  // ZIP-START  (tiny store-only ZIP writer — PNGs are already compressed, so no library needed)
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(buf) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function makeZip(files) {   // files: [{ name, data: Uint8Array }]
+    const enc = new TextEncoder();
+    const now = new Date();
+    const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+    const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    const parts = [];
+    const central = [];
+    let offset = 0;
+
+    for (const f of files) {
+      const name = enc.encode(f.name);
+      const crc = crc32(f.data);
+      const size = f.data.length;
+
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true);
+      lh.setUint16(4, 20, true);
+      lh.setUint16(6, 0x0800, true);      // UTF-8 file names
+      lh.setUint16(8, 0, true);           // stored (no compression)
+      lh.setUint16(10, dosTime, true);
+      lh.setUint16(12, dosDate, true);
+      lh.setUint32(14, crc, true);
+      lh.setUint32(18, size, true);
+      lh.setUint32(22, size, true);
+      lh.setUint16(26, name.length, true);
+      lh.setUint16(28, 0, true);
+      parts.push(new Uint8Array(lh.buffer), name, f.data);
+
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true);
+      ch.setUint16(4, 20, true);
+      ch.setUint16(6, 20, true);
+      ch.setUint16(8, 0x0800, true);
+      ch.setUint16(10, 0, true);
+      ch.setUint16(12, dosTime, true);
+      ch.setUint16(14, dosDate, true);
+      ch.setUint32(16, crc, true);
+      ch.setUint32(20, size, true);
+      ch.setUint32(24, size, true);
+      ch.setUint16(28, name.length, true);
+      ch.setUint16(30, 0, true);          // extra field length
+      ch.setUint16(32, 0, true);          // comment length
+      ch.setUint16(34, 0, true);          // disk number
+      ch.setUint16(36, 0, true);          // internal attrs
+      ch.setUint32(38, 0, true);          // external attrs
+      ch.setUint32(42, offset, true);     // where this file's local header starts
+      central.push(new Uint8Array(ch.buffer), name);
+
+      offset += 30 + name.length + size;
+    }
+
+    const cdSize = central.reduce((s, p) => s + p.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(4, 0, true);
+    end.setUint16(6, 0, true);
+    end.setUint16(8, files.length, true);
+    end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true);
+    end.setUint32(16, offset, true);
+    end.setUint16(20, 0, true);
+
+    return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+  }
+  // ZIP-END
+
+  function canvasToBlob(c) {
+    return new Promise((resolve, reject) => {
+      c.toBlob(b => b ? resolve(b) : reject(new Error('Could not encode image')), 'image/png');
+    });
+  }
+
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  function uniqueName(base, used) {
+    let name = `${base}_watermarked.png`;
+    let n = 2;
+    while (used.has(name.toLowerCase())) name = `${base}_watermarked_${n++}.png`;
+    used.add(name.toLowerCase());
+    return name;
+  }
+
+  async function downloadBatch() {
+    if (batchBusy || items.length < 2) return;
+    const list = items.slice();
+    batchBusy = true;
+    document.body.classList.add('busy');
+    dlBtn.disabled = true;
+
+    const off = document.createElement('canvas');
+    const offCtx = off.getContext('2d');
+    const files = [];
+    const used = new Set();
+    let failed = 0;
+
+    try {
+      try { await document.fonts.load("bold 16px 'AG Book Rounded'"); } catch (_) {}
+
+      for (let i = 0; i < list.length; i++) {
+        dlBtn.textContent = `Processing ${i + 1} / ${list.length}…`;
+        statusText.textContent = `Watermarking ${list[i].name}…`;
+        await new Promise(r => setTimeout(r, 20));   // let the UI repaint
+        try {
+          renderFull(off, offCtx, list[i].img);
+          const blob = await canvasToBlob(off);
+          files.push({ name: uniqueName(list[i].name, used), data: new Uint8Array(await blob.arrayBuffer()) });
+        } catch (err) {
+          failed++;
+          console.error('Failed to process', list[i].name, err);
+        }
+      }
+
+      if (!files.length) throw new Error('none of the images could be processed');
+      dlBtn.textContent = 'Zipping…';
+      await new Promise(r => setTimeout(r, 20));
+      triggerDownload(makeZip(files), `watermarked_batch_${downloadCount}.zip`);
+      downloadCount++;
+      statusText.textContent = `Done · ${files.length} image${files.length === 1 ? '' : 's'} zipped` + (failed ? ` · ${failed} failed` : '');
+    } catch (err) {
+      statusText.textContent = 'Something went wrong: ' + err.message;
+    } finally {
+      off.width = off.height = 0;
+      batchBusy = false;
+      document.body.classList.remove('busy');
+      updateDownloadUI();
+    }
+  }
+
   dlBtn.addEventListener('click', () => {
+    if (batchMode && items.length > 1) { downloadBatch(); return; }
+    if (!img) return;
     const a = document.createElement('a');
     a.download = `watermarked_${downloadCount}.png`;
     a.href = canvas.toDataURL('image/png');
@@ -964,7 +1456,7 @@
   const applyCropBtn    = document.getElementById('apply-crop-btn');
   const cancelCropBtn   = document.getElementById('cancel-crop-btn');
 
-  cropBtn.addEventListener('click', () => { if (!img) return; enterCropMode(); });
+  cropBtn.addEventListener('click', () => { if (!img || batchBusy) return; enterCropMode(); });
   modeFreeBtn.addEventListener('click', () => {
     cropRatioLocked = false;
     modeFreeBtn.classList.add('active'); modeLockedBtn.classList.remove('active');
@@ -980,8 +1472,17 @@
   function enterCropMode() {
     cropMode = true;
     cropBtn.classList.add('active');
-    drawRaw(cropCanvas, cropCtx);
-    cropAspectRatio = canvas.width / canvas.height;
+
+    // Crop works on the original photo (only mirrored if Flip is on), so border / filters
+    // aren't baked into the cropped image and then applied a second time.
+    cropCanvas.width = img.width;
+    cropCanvas.height = img.height;
+    cropCtx.save();
+    if (isFlipped) { cropCtx.translate(img.width, 0); cropCtx.scale(-1, 1); }
+    cropCtx.drawImage(img, 0, 0);
+    cropCtx.restore();
+
+    cropAspectRatio = img.width / img.height;
     cropRatioLocked = false;
     modeFreeBtn.classList.add('active'); modeLockedBtn.classList.remove('active');
     cropContainer.style.display = 'block';
@@ -1000,24 +1501,31 @@
     cropBtn.classList.remove('active');
     cropContainer.style.display = 'none';
     cropToolbar.style.display = 'none';
-    previewWrap.style.display = 'block';
-    dlBtn.disabled = false;
+    if (img) previewWrap.style.display = 'block';
+    updateDownloadUI();
   }
 
   function applyCrop() {
-    const displayW = cropContainer.clientWidth;
-    const scaleX = cropCanvas.width / displayW;
-    const displayH = cropContainer.clientHeight;
-    const scaleY = cropCanvas.height / displayH;
-    const sx = Math.round(cropBox.x * scaleX);
-    const sy = Math.round(cropBox.y * scaleY);
-    const sw = Math.round(cropBox.w * scaleX);
-    const sh = Math.round(cropBox.h * scaleY);
+    const scaleX = cropCanvas.width / cropContainer.clientWidth;
+    const scaleY = cropCanvas.height / cropContainer.clientHeight;
+    let sx = Math.max(0, Math.round(cropBox.x * scaleX));
+    const sy = Math.max(0, Math.round(cropBox.y * scaleY));
+    const sw = Math.max(1, Math.min(Math.round(cropBox.w * scaleX), cropCanvas.width - sx));
+    const sh = Math.max(1, Math.min(Math.round(cropBox.h * scaleY), cropCanvas.height - sy));
+    if (isFlipped) sx = cropCanvas.width - sx - sw;   // the crop view is mirrored; map back onto the original photo
+
     const tmp = document.createElement('canvas');
     tmp.width = sw; tmp.height = sh;
-    tmp.getContext('2d').drawImage(cropCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    tmp.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    const target = items[activeIndex];   // the queue entry being cropped
     const croppedImg = new Image();
-    croppedImg.onload = () => { img = croppedImg; draw(); };
+    croppedImg.onload = () => {
+      if (target) { target.img = croppedImg; target.thumb = makeThumb(croppedImg); }
+      if (!target || items[activeIndex] === target) img = croppedImg;
+      renderQueue();
+      draw();
+    };
     croppedImg.src = tmp.toDataURL();
   }
 
@@ -1106,6 +1614,7 @@
   });
 
   renderFilters();
+  applyBatchUI();
 </script>
 </body>
 </html>
