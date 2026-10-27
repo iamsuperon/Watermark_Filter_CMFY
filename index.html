@@ -145,6 +145,28 @@
   }
   .queue-head .section-title { margin-bottom: 0; }
   #queue-count { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); }
+
+  /* ZIP / separate images switch */
+  .save-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+  }
+  .save-row .mk {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-faint);
+  }
+  .seg {
+    display: flex; flex: 1; min-width: 230px; gap: 3px; padding: 3px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .seg-btn {
+    flex: 1; padding: 10px 12px; border: none; border-radius: 8px; background: transparent;
+    color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+  }
+  @media (max-width: 480px) { .save-row .mk { flex-basis: 100%; } }
+  .seg-btn:hover { color: var(--text); }
+  .seg-btn.active { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
   .queue-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
@@ -189,6 +211,23 @@
   body.busy .icon-btn.trash-btn, body.busy .batch-btn {
     pointer-events: none; opacity: 0.6;
   }
+
+  /* ── Metadata section ── */
+  .meta-preview {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .meta-preview > div { display: flex; gap: 12px; align-items: baseline; }
+  .meta-preview .mk {
+    flex: 0 0 62px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-faint);
+  }
+  .meta-preview .mv {
+    font-family: 'DM Mono', monospace; font-size: 13px; line-height: 1.45;
+    color: var(--text); word-break: break-word; min-width: 0;
+  }
+  .meta-hint { font-size: 13px; color: var(--text-faint); line-height: 1.5; margin-top: 12px; }
 
   /* ── Download + Clear row ── */
   .action-row {
@@ -484,6 +523,14 @@
       <span id="queue-count">0 images</span>
     </div>
     <div class="queue-grid" id="queue-grid"></div>
+    <div class="save-row">
+      <span class="mk">Save as</span>
+      <div class="seg" role="group" aria-label="Batch download format">
+        <button type="button" class="seg-btn" data-mode="zip">ZIP file</button>
+        <button type="button" class="seg-btn" data-mode="files">Separate images</button>
+      </div>
+    </div>
+    <div class="meta-hint" id="save-hint"></div>
   </div>
 
   <!-- Download + Clear row (between drop zone and panels) -->
@@ -606,6 +653,48 @@
         <div class="slider-row"><input type="range" id="filterStrength" min="0" max="100" value="100"></div>
       </div>
     </div>
+    <div class="panel-section">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-label">Replace metadata</div>
+          <div class="toggle-sub">Wipes original info &amp; filename, adds random camera EXIF · saves as JPG</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="metaToggle" checked>
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div id="meta-options" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);">
+        <div class="field-grid" style="margin-bottom: 14px;">
+          <div class="field">
+            <label>Camera brand</label>
+            <select id="metaBrand">
+              <option value="random">Random</option>
+              <option value="Sony">Sony</option>
+              <option value="Canon">Canon</option>
+              <option value="Nikon">Nikon</option>
+              <option value="Fujifilm">Fujifilm</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Location</label>
+            <select id="metaRegion">
+              <option value="world">Anywhere</option>
+              <option value="ph">Philippines</option>
+              <option value="none">None (no GPS)</option>
+            </select>
+          </div>
+        </div>
+        <div class="meta-preview">
+          <div><span class="mk">Camera</span><span class="mv" id="mp-cam"></span></div>
+          <div><span class="mk">Lens</span><span class="mv" id="mp-lens"></span></div>
+          <div><span class="mk">Shot</span><span class="mv" id="mp-where"></span></div>
+          <div><span class="mk">File</span><span class="mv" id="mp-file"></span></div>
+        </div>
+        <button type="button" id="meta-reroll" class="btn-secondary">🎲 Reroll</button>
+        <div class="meta-hint">This is what your next download will be tagged with. Aperture, ISO, shutter speed and focal length are randomized for every photo, and each batch is shot on one camera over a few minutes. A new camera is picked after every download.</div>
+      </div>
+    </div>
   </div>
 
   <!-- Crop toolbar -->
@@ -691,12 +780,16 @@
   const queuePanel = document.getElementById('queue-panel');
   const queueGrid = document.getElementById('queue-grid');
   const queueCount = document.getElementById('queue-count');
+  const saveHint = document.getElementById('save-hint');
 
   let img = null;            // the image currently being previewed (= items[activeIndex].img)
   let items = [];            // the queue: { id, name, img, thumb }  (single mode just holds one)
   let activeIndex = 0;
   let batchMode = false;
   let batchBusy = false;
+  let batchSave = 'zip';          // 'zip' = one ZIP file, 'files' = every photo saved on its own
+  const MULTI_DL_GAP = 450;       // ms between separate saves, browsers drop downloads that fire back-to-back
+  try { if (localStorage.getItem('wm-batch-save') === 'files') batchSave = 'files'; } catch (_) {}
   let uid = 0;
   let pasteCount = 0;
   let downloadCount = 1;
@@ -710,7 +803,7 @@
   let wmCustom = false;      // use the dragged position instead of the Position dropdown
   let wmDragging = false;
 
-  document.fonts.load("bold 16px 'AG Book Rounded'").then(() => { if (img) draw(); });
+  document.fonts.load("bold 16px 'AG Book Rounded'").then(() => { if (img) draw(); }).catch(() => {});
 
   // ── Dark Mode ──
   themeBtn.addEventListener('click', () => {
@@ -851,10 +944,33 @@
   function updateDownloadUI() {
     if (batchBusy) return;
     const n = items.length;
-    if (batchMode && n > 1) dlBtn.textContent = `Download all (${n}) as ZIP`;
-    else if (batchMode && n === 0) dlBtn.textContent = 'Download all as ZIP';
+    const tail = batchSave === 'zip' ? 'as ZIP' : 'images';
+    if (batchMode && n > 1) dlBtn.textContent = `Download all (${n}) ${tail}`;
+    else if (batchMode && n === 0) dlBtn.textContent = `Download all ${tail}`;
     else dlBtn.textContent = 'Download image';
     dlBtn.disabled = !n || cropMode;
+  }
+
+  function renderSaveMode() {
+    document.querySelectorAll('.seg-btn').forEach(b => {
+      const on = b.dataset.mode === batchSave;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    saveHint.textContent = batchSave === 'zip'
+      ? 'Everything arrives as one ZIP file.'
+      : 'Each photo is saved on its own, no unzipping. If your browser asks to allow multiple downloads, choose Allow.';
+  }
+  function setBatchSave(mode) {
+    if (batchBusy) return;
+    batchSave = mode;
+    try { localStorage.setItem('wm-batch-save', mode); } catch (_) {}
+    renderSaveMode();
+    updateDownloadUI();
+  }
+  function initSaveMode() {
+    document.querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => setBatchSave(b.dataset.mode)));
+    renderSaveMode();
   }
 
   function updateStatus() {
@@ -1097,6 +1213,7 @@
     wmCustom = false;
     setWmDragMode(false);
     renderFilters();
+    resetMetaControls();
     if (img) draw();
   });
 
@@ -1355,6 +1472,358 @@
   }
   // ZIP-END
 
+  // ══════════════════
+  //  RANDOM CAMERA METADATA (EXIF)
+  // ══════════════════
+  // Every export is redrawn from raw pixels, so the original EXIF / GPS / filename never survive.
+  // With "Replace metadata" on, a fresh camera record is written into the JPG instead.
+
+  // EXIF-START
+  const rnd  = (a, b) => a + Math.random() * (b - a);
+  const rint = (a, b) => Math.floor(rnd(a, b + 1));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const pad  = (n, l = 2) => String(n).padStart(l, '0');
+
+  // ── tiny TIFF/EXIF writer (little-endian) ──
+  const exAscii = s => { const b = new Uint8Array(s.length + 1); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0x7F; return b; };
+  const exU16 = v => { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, v, true); return b; };
+  const exU32 = v => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, v, true); return b; };
+  function exRat(pairs, signed) {
+    const b = new Uint8Array(pairs.length * 8), dv = new DataView(b.buffer);
+    pairs.forEach(([n, d], i) => {
+      if (signed) dv.setInt32(i * 8, n, true); else dv.setUint32(i * 8, n, true);
+      dv.setUint32(i * 8 + 4, d, true);
+    });
+    return b;
+  }
+  const EX = {
+    ascii: (t, s) => { const d = exAscii(s); return { t, ty: 2, n: d.length, d }; },
+    short: (t, v) => ({ t, ty: 3, n: 1, d: exU16(v) }),
+    long:  (t, v) => ({ t, ty: 4, n: 1, d: exU32(v) }),
+    rat:   (t, pairs) => ({ t, ty: 5,  n: pairs.length, d: exRat(pairs, false) }),
+    srat:  (t, pairs) => ({ t, ty: 10, n: pairs.length, d: exRat(pairs, true) }),
+    byte:  (t, arr) => ({ t, ty: 1, n: arr.length, d: Uint8Array.from(arr) }),
+    undef: (t, arr) => ({ t, ty: 7, n: arr.length, d: Uint8Array.from(arr) })
+  };
+  const exSize = es => es.reduce((s, e) => s + (e.d.length > 4 ? e.d.length + (e.d.length & 1) : 0), 2 + es.length * 12 + 4);
+  function exWriteIfd(dv, bytes, base, es) {
+    es.sort((a, b) => a.t - b.t);
+    dv.setUint16(base, es.length, true);
+    let ptr = base + 2 + es.length * 12 + 4;
+    es.forEach((e, i) => {
+      const p = base + 2 + i * 12;
+      dv.setUint16(p, e.t, true); dv.setUint16(p + 2, e.ty, true); dv.setUint32(p + 4, e.n, true);
+      if (e.d.length <= 4) bytes.set(e.d, p + 8);
+      else { dv.setUint32(p + 8, ptr, true); bytes.set(e.d, ptr); ptr += e.d.length + (e.d.length & 1); }
+    });
+  }
+  function exBuildTiff(ifd0, exifIfd, gpsIfd) {
+    const pExif = EX.long(0x8769, 0), pGps = gpsIfd ? EX.long(0x8825, 0) : null;
+    ifd0.push(pExif); if (pGps) ifd0.push(pGps);
+    const o0 = 8, oE = o0 + exSize(ifd0), oG = oE + exSize(exifIfd);
+    pExif.d = exU32(oE); if (pGps) pGps.d = exU32(oG);
+    const bytes = new Uint8Array(oG + (gpsIfd ? exSize(gpsIfd) : 0)), dv = new DataView(bytes.buffer);
+    bytes.set([0x49, 0x49, 0x2A, 0x00], 0); dv.setUint32(4, 8, true);
+    exWriteIfd(dv, bytes, o0, ifd0);
+    exWriteIfd(dv, bytes, oE, exifIfd);
+    if (gpsIfd) exWriteIfd(dv, bytes, oG, gpsIfd);
+    return bytes;
+  }
+
+  // Put an EXIF block right after the JPEG start marker (drops the browser's JFIF header and any old APP0/APP1)
+  function exInject(jpeg, tiff) {
+    const hdr = [0x45, 0x78, 0x69, 0x66, 0, 0];   // "Exif\0\0"
+    const segLen = 2 + hdr.length + tiff.length;
+    if (jpeg[0] !== 0xFF || jpeg[1] !== 0xD8 || segLen > 0xFFFF) return jpeg;
+    const keep = [];
+    let pos = 2;
+    while (pos + 4 <= jpeg.length && jpeg[pos] === 0xFF) {
+      const m = jpeg[pos + 1];
+      if (m === 0xFF) { pos++; continue; }
+      if (m === 0xDA || m === 0xD9) break;
+      const len = (jpeg[pos + 2] << 8) | jpeg[pos + 3];
+      if (m !== 0xE0 && m !== 0xE1) keep.push(jpeg.subarray(pos, pos + 2 + len));
+      pos += 2 + len;
+    }
+    const app1 = new Uint8Array(4 + hdr.length + tiff.length);
+    app1.set([0xFF, 0xE1, segLen >> 8, segLen & 0xFF], 0);
+    app1.set(hdr, 4); app1.set(tiff, 4 + hdr.length);
+    const parts = [jpeg.subarray(0, 2), app1, ...keep, jpeg.subarray(pos)];
+    const out = new Uint8Array(parts.reduce((s, p) => s + p.length, 0));
+    let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+    return out;
+  }
+
+  // ── time zones (so the clock time, UTC offset and GPS time all agree with the place) ──
+  function localParts(utcMs, tz) {
+    const p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(new Date(utcMs)).forEach(x => { p[x.type] = x.value; });
+    return { y: +p.year, mo: +p.month, d: +p.day, h: (+p.hour) % 24, mi: +p.minute, s: +p.second };
+  }
+  function tzOffsetMin(tz, utcMs) {
+    const l = localParts(utcMs, tz);
+    return Math.round((Date.UTC(l.y, l.mo - 1, l.d, l.h, l.mi, l.s) - Math.floor(utcMs / 1000) * 1000) / 60000);
+  }
+  function localToUtcMs(tz, y, mo, d, h, mi, s) {
+    const naive = Date.UTC(y, mo - 1, d, h, mi, s);
+    const first = naive - tzOffsetMin(tz, naive) * 60000;
+    return naive - tzOffsetMin(tz, first) * 60000;     // second pass settles daylight-saving edges
+  }
+
+  // ── gear ──
+  const L = (m, f0, f1, a0, a1 = a0) => ({ m, f: [f0, f1], a: [a0, a1] });   // lens: name, focal range, max aperture (wide / tele end)
+  const SONY_FE = [L('FE 35mm F1.8', 35, 35, 1.8), L('FE 50mm F1.8', 50, 50, 1.8), L('FE 85mm F1.8', 85, 85, 1.8), L('FE 24-70mm F2.8 GM', 24, 70, 2.8), L('FE 24-105mm F4 G OSS', 24, 105, 4), L('FE 28-70mm F3.5-5.6 OSS', 28, 70, 3.5, 5.6)];
+  const SONY_E  = [L('E 16-55mm F2.8 G', 16, 55, 2.8), L('E 18-135mm F3.5-5.6 OSS', 18, 135, 3.5, 5.6), L('E 35mm F1.8 OSS', 35, 35, 1.8), L('E PZ 16-50mm F3.5-5.6 OSS', 16, 50, 3.5, 5.6)];
+  const CANON_RF = [L('RF24-105mm F4 L IS USM', 24, 105, 4), L('RF50mm F1.8 STM', 50, 50, 1.8), L('RF35mm F1.8 MACRO IS STM', 35, 35, 1.8), L('RF24-70mm F2.8 L IS USM', 24, 70, 2.8), L('RF85mm F2 MACRO IS STM', 85, 85, 2)];
+  const CANON_RF_ENTRY = [L('RF24-105mm F4-7.1 IS STM', 24, 105, 4, 7.1), L('RF50mm F1.8 STM', 50, 50, 1.8), L('RF35mm F1.8 MACRO IS STM', 35, 35, 1.8), L('RF85mm F2 MACRO IS STM', 85, 85, 2)];
+  const CANON_EF = [L('EF24-70mm f/2.8L II USM', 24, 70, 2.8), L('EF50mm f/1.8 STM', 50, 50, 1.8), L('EF85mm f/1.8 USM', 85, 85, 1.8), L('EF70-200mm f/4L IS USM', 70, 200, 4)];
+  const CANON_EFS = [L('EF-S18-135mm f/3.5-5.6 IS USM', 18, 135, 3.5, 5.6), L('EF-S24mm f/2.8 STM', 24, 24, 2.8), L('EF50mm f/1.8 STM', 50, 50, 1.8), L('EF-S17-55mm f/2.8 IS USM', 17, 55, 2.8)];
+  const NIKON_Z = [L('NIKKOR Z 24-70mm f/4 S', 24, 70, 4), L('NIKKOR Z 50mm f/1.8 S', 50, 50, 1.8), L('NIKKOR Z 35mm f/1.8 S', 35, 35, 1.8), L('NIKKOR Z 85mm f/1.8 S', 85, 85, 1.8), L('NIKKOR Z 24-120mm f/4 S', 24, 120, 4)];
+  const NIKON_ZDX = [L('NIKKOR Z DX 16-50mm f/3.5-6.3 VR', 16, 50, 3.5, 6.3), L('NIKKOR Z 40mm f/2', 40, 40, 2), L('NIKKOR Z DX 50-250mm f/4.5-6.3 VR', 50, 250, 4.5, 6.3)];
+  const NIKON_F = [L('AF-S NIKKOR 24-70mm f/2.8E ED VR', 24, 70, 2.8), L('AF-S NIKKOR 50mm f/1.8G', 50, 50, 1.8), L('AF-S NIKKOR 85mm f/1.8G', 85, 85, 1.8), L('AF-S NIKKOR 70-200mm f/2.8E FL ED VR', 70, 200, 2.8)];
+  const FUJI_X = [L('XF35mmF1.4 R', 35, 35, 1.4), L('XF23mmF2 R WR', 23, 23, 2), L('XF16-55mmF2.8 R LM WR', 16, 55, 2.8), L('XF18-55mmF2.8-4 R LM OIS', 18, 55, 2.8, 4), L('XF50mmF2 R WR', 50, 50, 2), L('XF33mmF1.4 R LM WR', 33, 33, 1.4)];
+
+  const CAMERAS = {
+    Sony: { make: 'SONY', lensMake: 'Sony', file: n => `DSC${pad(n, 5)}.JPG`, sw: b => `${b.model} v${b.fw}`, bodies: [
+      { model: 'ILCE-7M4',  fw: '2.00', crop: 1,   lenses: SONY_FE },
+      { model: 'ILCE-7M3',  fw: '3.10', crop: 1,   lenses: SONY_FE },
+      { model: 'ILCE-7CM2', fw: '2.00', crop: 1,   lenses: SONY_FE },
+      { model: 'ILCE-7RM5', fw: '2.00', crop: 1,   lenses: SONY_FE },
+      { model: 'ILCE-6400', fw: '2.00', crop: 1.5, lenses: SONY_E },
+      { model: 'ILCE-6700', fw: '1.01', crop: 1.5, lenses: SONY_E }
+    ] },
+    Canon: { make: 'Canon', lensMake: 'Canon', file: n => `IMG_${pad(n, 4)}.JPG`, sw: null, bodies: [
+      { model: 'Canon EOS R6 Mark II', crop: 1,   lenses: CANON_RF },
+      { model: 'Canon EOS R8',         crop: 1,   lenses: CANON_RF_ENTRY },
+      { model: 'Canon EOS RP',         crop: 1,   lenses: CANON_RF_ENTRY },
+      { model: 'Canon EOS 5D Mark IV', crop: 1,   lenses: CANON_EF },
+      { model: 'Canon EOS 90D',        crop: 1.6, lenses: CANON_EFS }
+    ] },
+    Nikon: { make: 'NIKON CORPORATION', lensMake: 'Nikon', file: n => `DSC_${pad(n, 4)}.JPG`, sw: () => 'Ver.1.10', bodies: [
+      { model: 'NIKON Z 6_2', crop: 1,   lenses: NIKON_Z },
+      { model: 'NIKON Z f',   crop: 1,   lenses: NIKON_Z },
+      { model: 'NIKON Z 5',   crop: 1,   lenses: NIKON_Z },
+      { model: 'NIKON Z 50',  crop: 1.5, lenses: NIKON_ZDX },
+      { model: 'NIKON D750',  crop: 1,   lenses: NIKON_F }
+    ] },
+    Fujifilm: { make: 'FUJIFILM', lensMake: 'FUJIFILM', file: n => `DSCF${pad(n, 4)}.JPG`, sw: b => `Digital Camera ${b.model} Ver1.10`, bodies: [
+      { model: 'X-T5',     crop: 1.5, lenses: FUJI_X },
+      { model: 'X-S20',    crop: 1.5, lenses: FUJI_X },
+      { model: 'X-T30 II', crop: 1.5, lenses: FUJI_X },
+      { model: 'X-H2',     crop: 1.5, lenses: FUJI_X }
+    ] }
+  };
+
+  const APERTURES = [1.4, 1.6, 1.8, 2, 2.2, 2.5, 2.8, 3.2, 3.5, 4, 4.5, 5, 5.6, 6.3, 7.1, 8, 9, 10, 11, 13, 14, 16];
+  const ISOS = [100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6400];
+  const SHUTTERS = [30, 40, 50, 60, 80, 100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000];   // 1/x s
+  const ZOOM_STOPS = [16, 18, 20, 24, 28, 35, 40, 50, 55, 70, 85, 100, 105, 120, 135, 150, 200];
+  // lighting situations: weight, ISO range, shutter (1/x) range, aperture range, hours of the day, shot near wide-open?
+  const SCENES = [
+    { w: 45, iso: [100, 200],   shut: [250, 2000], ap: [2.8, 8], hr: [8, 16],  wide: false },   // sunny
+    { w: 25, iso: [100, 400],   shut: [125, 500],  ap: [2, 5.6], hr: [7, 17],  wide: false },   // overcast
+    { w: 20, iso: [400, 1600],  shut: [60, 200],   ap: [0, 0],   hr: [10, 21], wide: true },    // indoors
+    { w: 10, iso: [1600, 6400], shut: [30, 100],   ap: [0, 0],   hr: [19, 23], wide: true }     // night
+  ];
+
+  const C = (name, lat, lon, tz, alt) => ({ name, lat, lon, tz, alt });
+  const PH_CITIES = [
+    C('Manila', 14.5995, 120.9842, 'Asia/Manila', 15), C('Cebu City', 10.3157, 123.8854, 'Asia/Manila', 10),
+    C('Davao City', 7.1907, 125.4553, 'Asia/Manila', 20), C('Baguio', 16.4023, 120.5960, 'Asia/Manila', 1500),
+    C('Iloilo City', 10.7202, 122.5621, 'Asia/Manila', 8), C('Cagayan de Oro', 8.4542, 124.6319, 'Asia/Manila', 10),
+    C('Tagaytay', 14.1153, 120.9621, 'Asia/Manila', 600), C('Puerto Princesa', 9.7392, 118.7353, 'Asia/Manila', 6),
+    C('Vigan', 17.5747, 120.3869, 'Asia/Manila', 10), C('Bacolod', 10.6765, 122.9509, 'Asia/Manila', 10)
+  ];
+  const WORLD_CITIES = [
+    C('Tokyo', 35.6762, 139.6503, 'Asia/Tokyo', 40), C('Osaka', 34.6937, 135.5023, 'Asia/Tokyo', 10),
+    C('Seoul', 37.5665, 126.9780, 'Asia/Seoul', 40), C('Taipei', 25.0330, 121.5654, 'Asia/Taipei', 15),
+    C('Singapore', 1.3521, 103.8198, 'Asia/Singapore', 15), C('Bangkok', 13.7563, 100.5018, 'Asia/Bangkok', 5),
+    C('Hong Kong', 22.3193, 114.1694, 'Asia/Hong_Kong', 20), C('Kuala Lumpur', 3.1390, 101.6869, 'Asia/Kuala_Lumpur', 60),
+    C('Sydney', -33.8688, 151.2093, 'Australia/Sydney', 25), C('Melbourne', -37.8136, 144.9631, 'Australia/Melbourne', 30),
+    C('London', 51.5074, -0.1278, 'Europe/London', 20), C('Paris', 48.8566, 2.3522, 'Europe/Paris', 40),
+    C('Rome', 41.9028, 12.4964, 'Europe/Rome', 25), C('Barcelona', 41.3874, 2.1686, 'Europe/Madrid', 15),
+    C('Amsterdam', 52.3676, 4.9041, 'Europe/Amsterdam', 2), C('Lisbon', 38.7223, -9.1393, 'Europe/Lisbon', 30),
+    C('Prague', 50.0755, 14.4378, 'Europe/Prague', 200), C('Istanbul', 41.0082, 28.9784, 'Europe/Istanbul', 40),
+    C('Dubai', 25.2048, 55.2708, 'Asia/Dubai', 10), C('New York', 40.7128, -74.0060, 'America/New_York', 10),
+    C('Los Angeles', 34.0522, -118.2437, 'America/Los_Angeles', 90), C('San Francisco', 37.7749, -122.4194, 'America/Los_Angeles', 20),
+    C('Vancouver', 49.2827, -123.1207, 'America/Vancouver', 15), C('Toronto', 43.6532, -79.3832, 'America/Toronto', 80),
+    C('Mexico City', 19.4326, -99.1332, 'America/Mexico_City', 2240)
+  ];
+  const ALL_CITIES = PH_CITIES.concat(WORLD_CITIES);
+
+  // One "outing": same camera, same place, same afternoon. Each photo of a batch is a later frame of it.
+  function exNewSession(opts) {
+    const brandName = opts.brand === 'random' || !CAMERAS[opts.brand] ? pick(Object.keys(CAMERAS)) : opts.brand;
+    const B = CAMERAS[brandName], body = pick(B.bodies);
+    const lenses = body.lenses.slice().sort(() => Math.random() - 0.5).slice(0, rint(1, 2));
+    let r = Math.random() * SCENES.reduce((s, x) => s + x.w, 0), scene = SCENES[0];
+    for (const s of SCENES) { if ((r -= s.w) < 0) { scene = s; break; } }
+    const city = opts.region === 'none' ? null : pick(opts.region === 'ph' ? PH_CITIES : ALL_CITIES);
+    const tz = city ? city.tz : 'Asia/Manila';
+    const day = localParts(Date.now() - rint(4, 540) * 86400000, tz);   // some day in the last ~18 months
+    const cursor = localToUtcMs(tz, day.y, day.mo, day.d, rint(scene.hr[0], scene.hr[1]), rint(0, 59), rint(0, 59));
+    return {
+      brandName, B, body, lenses, lens: lenses[0], scene, city, tz, cursor,
+      lat: city ? city.lat + rnd(-0.03, 0.03) : 0, lon: city ? city.lon + rnd(-0.03, 0.03) : 0,
+      fileNo: rint(120, 9400), shots: 0
+    };
+  }
+
+  // Build the EXIF block + camera-style filename for the next photo of a session
+  function exMakeShot(S, w, h) {
+    if (S.shots++ > 0) {
+      S.cursor += rint(12, 300) * 1000;
+      S.fileNo += 1 + (Math.random() < 0.15 ? rint(1, 3) : 0);
+    }
+    if (S.lenses.length > 1 && Math.random() < 0.3) S.lens = pick(S.lenses);
+    const lens = S.lens, sc = S.scene, B = S.B, crop = S.body.crop;
+    const prime = lens.f[0] === lens.f[1];
+    const fl = prime ? lens.f[0] : pick(ZOOM_STOPS.filter(z => z >= lens.f[0] && z <= lens.f[1]).concat(lens.f));
+    const maxAp = (prime || lens.a[0] === lens.a[1]) ? lens.a[0] : lens.a[0] + (lens.a[1] - lens.a[0]) * (fl - lens.f[0]) / (lens.f[1] - lens.f[0]);
+    let aps = APERTURES.filter(a => a >= maxAp - 0.05 && (sc.wide ? a <= maxAp * 1.45 : (a >= sc.ap[0] && a <= sc.ap[1])));
+    if (!aps.length) aps = [APERTURES.find(a => a >= maxAp - 0.05) || maxAp];
+    const fn = pick(aps);
+    const iso = pick(ISOS.filter(v => v >= sc.iso[0] && v <= sc.iso[1]));
+    const minDen = Math.max(sc.shut[0], Math.round(fl * crop * 0.6));     // keep it hand-holdable
+    let shuts = SHUTTERS.filter(d => d >= minDen && d <= sc.shut[1]);
+    if (!shuts.length) shuts = [Math.max(sc.shut[1], minDen)];
+    const den = pick(shuts);
+    const prog = pick([3, 3, 3, 1, 1, 2]);                                  // aperture priority / manual / program
+    const bias = pick([-1, -0.7, -0.3, 0, 0, 0, 0, 0.3, 0.7]);
+
+    const lp = localParts(S.cursor, S.tz), off = tzOffsetMin(S.tz, S.cursor);
+    const dts = `${lp.y}:${pad(lp.mo)}:${pad(lp.d)} ${pad(lp.h)}:${pad(lp.mi)}:${pad(lp.s)}`;
+    const offs = `${off < 0 ? '-' : '+'}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
+    const sub = pad(rint(0, 99));
+
+    const ifd0 = [
+      EX.ascii(0x010F, B.make), EX.ascii(0x0110, S.body.model), EX.short(0x0112, 1),
+      EX.rat(0x011A, [[72, 1]]), EX.rat(0x011B, [[72, 1]]), EX.short(0x0128, 2),
+      EX.ascii(0x0132, dts), EX.short(0x0213, 2)
+    ];
+    const sw = B.sw && B.sw(S.body); if (sw) ifd0.push(EX.ascii(0x0131, sw));
+
+    const exif = [
+      EX.rat(0x829A, [[1, den]]), EX.rat(0x829D, [[Math.round(fn * 10), 10]]),
+      EX.short(0x8822, prog), EX.short(0x8827, iso),
+      EX.undef(0x9000, [0x30, 0x32, 0x33, 0x32]),                           // ExifVersion 0232
+      EX.ascii(0x9003, dts), EX.ascii(0x9004, dts),
+      EX.ascii(0x9010, offs), EX.ascii(0x9011, offs), EX.ascii(0x9012, offs),
+      EX.ascii(0x9290, sub), EX.ascii(0x9291, sub), EX.ascii(0x9292, sub),
+      EX.undef(0x9101, [1, 2, 3, 0]),
+      EX.srat(0x9204, [[Math.round(bias * 10), 10]]),
+      EX.short(0x9207, 5), EX.short(0x9209, 16),                            // pattern metering, flash off
+      EX.rat(0x920A, [[fl, 1]]),
+      EX.undef(0xA000, [0x30, 0x31, 0x30, 0x30]),                           // FlashpixVersion 0100
+      EX.short(0xA001, 1), EX.long(0xA002, w), EX.long(0xA003, h),
+      EX.undef(0xA300, [3]), EX.undef(0xA301, [1]),
+      EX.short(0xA401, 0), EX.short(0xA402, prog === 1 ? 1 : 0), EX.short(0xA403, 0),
+      EX.short(0xA405, Math.round(fl * crop)), EX.short(0xA406, 0),
+      EX.rat(0xA432, [[lens.f[0], 1], [lens.f[1], 1], [Math.round(lens.a[0] * 10), 10], [Math.round(lens.a[1] * 10), 10]]),
+      EX.ascii(0xA433, B.lensMake), EX.ascii(0xA434, lens.m)
+    ];
+
+    let gps = null, lat = 0, lon = 0;
+    if (S.city) {
+      lat = S.lat + rnd(-0.0008, 0.0008); lon = S.lon + rnd(-0.0008, 0.0008);
+      const dms = v => { v = Math.abs(v); const d = Math.floor(v), m = Math.floor((v - d) * 60); return [[d, 1], [m, 1], [Math.round(((v - d) * 60 - m) * 6000), 100]]; };
+      const u = new Date(S.cursor);
+      gps = [
+        EX.byte(0x0000, [2, 3, 0, 0]),
+        EX.ascii(0x0001, lat >= 0 ? 'N' : 'S'), EX.rat(0x0002, dms(lat)),
+        EX.ascii(0x0003, lon >= 0 ? 'E' : 'W'), EX.rat(0x0004, dms(lon)),
+        EX.byte(0x0005, [0]), EX.rat(0x0006, [[Math.max(0, S.city.alt + rint(-3, 3)) * 10, 10]]),
+        EX.rat(0x0007, [[u.getUTCHours(), 1], [u.getUTCMinutes(), 1], [u.getUTCSeconds(), 1]]),
+        EX.ascii(0x001D, `${u.getUTCFullYear()}:${pad(u.getUTCMonth() + 1)}:${pad(u.getUTCDate())}`)
+      ];
+    }
+    return {
+      tiff: exBuildTiff(ifd0, exif, gps),
+      filename: B.file(S.fileNo),
+      info: { make: B.make, model: S.body.model, lens: lens.m, fl, fn, iso, den, dts, offs, lat, lon, city: S.city && S.city.name, crop }
+    };
+  }
+
+  function exDescribe(S) {
+    const mk = S.B.make.toLowerCase().split(' ')[0];
+    const cam = S.body.model.toLowerCase().startsWith(mk) ? S.body.model : `${S.B.make} ${S.body.model}`;
+    let when = '';
+    try { when = new Intl.DateTimeFormat('en-US', { timeZone: S.tz, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(S.cursor)); } catch (_) {}
+    return { cam, lens: S.lenses.map(l => l.m).join('  +  '), where: `${S.city ? S.city.name : 'No GPS'} · ${when}`, file: S.B.file(S.fileNo) };
+  }
+  // EXIF-END
+
+  const metaToggle  = document.getElementById('metaToggle');
+  const metaBrand   = document.getElementById('metaBrand');
+  const metaRegion  = document.getElementById('metaRegion');
+  const metaOptions = document.getElementById('meta-options');
+  const metaReroll  = document.getElementById('meta-reroll');
+  let metaSession = null;
+  let metaBusy = false;
+  const metaOn = () => metaToggle.checked;
+
+  function renderMetaPreview() {
+    metaOptions.style.display = metaOn() ? 'block' : 'none';
+    if (!metaOn() || !metaSession) return;
+    const d = exDescribe(metaSession);
+    document.getElementById('mp-cam').textContent = d.cam;
+    document.getElementById('mp-lens').textContent = d.lens;
+    document.getElementById('mp-where').textContent = d.where;
+    document.getElementById('mp-file').textContent = d.file;
+  }
+  function rollMetaSession() {
+    metaSession = exNewSession({ brand: metaBrand.value, region: metaRegion.value });
+    renderMetaPreview();
+  }
+  function getMetaSession() { if (!metaSession) rollMetaSession(); return metaSession; }
+  function resetMetaControls() {
+    metaToggle.checked = true; metaBrand.value = 'random'; metaRegion.value = 'world';
+    rollMetaSession();
+  }
+  function initMeta() {
+    metaToggle.addEventListener('change', rollMetaSession);
+    metaBrand.addEventListener('change', rollMetaSession);
+    metaRegion.addEventListener('change', rollMetaSession);
+    metaReroll.addEventListener('click', rollMetaSession);
+    rollMetaSession();
+  }
+
+  // JPG export (flattened on white, since JPG has no transparency) + EXIF
+  const flatCanvas = document.createElement('canvas');
+  function canvasToJpeg(c) {
+    flatCanvas.width = c.width; flatCanvas.height = c.height;
+    const g = flatCanvas.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(c, 0, 0);
+    return new Promise((resolve, reject) => {
+      flatCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Could not encode JPG')), 'image/jpeg', 0.95);
+    });
+  }
+  async function jpegWithMeta(c, S) {
+    const shot = exMakeShot(S, c.width, c.height);
+    const jpeg = new Uint8Array(await (await canvasToJpeg(c)).arrayBuffer());
+    return { name: shot.filename, data: exInject(jpeg, shot.tiff) };
+  }
+
+  async function downloadSingleWithMeta() {
+    if (metaBusy) return;
+    metaBusy = true;
+    dlBtn.disabled = true;
+    try {
+      const f = await jpegWithMeta(canvas, getMetaSession());
+      triggerDownload(new Blob([f.data], { type: 'image/jpeg' }), f.name);
+      statusText.textContent = `Saved ${f.name} · metadata replaced`;
+      downloadCount++;
+      rollMetaSession();
+    } catch (err) {
+      statusText.textContent = 'Something went wrong: ' + err.message;
+    } finally {
+      flatCanvas.width = flatCanvas.height = 0;
+      metaBusy = false;
+      updateDownloadUI();
+    }
+  }
+
   function canvasToBlob(c) {
     return new Promise((resolve, reject) => {
       c.toBlob(b => b ? resolve(b) : reject(new Error('Could not encode image')), 'image/png');
@@ -1391,44 +1860,68 @@
     const offCtx = off.getContext('2d');
     const files = [];
     const used = new Set();
+    const meta = metaOn();
+    const S = meta ? getMetaSession() : null;
+    const asZip = batchSave === 'zip';
+    let saved = 0;
     let failed = 0;
 
     try {
       try { await document.fonts.load("bold 16px 'AG Book Rounded'"); } catch (_) {}
 
       for (let i = 0; i < list.length; i++) {
-        dlBtn.textContent = `Processing ${i + 1} / ${list.length}…`;
+        dlBtn.textContent = `${asZip ? 'Processing' : 'Saving'} ${i + 1} / ${list.length}…`;
         statusText.textContent = `Watermarking ${list[i].name}…`;
         await new Promise(r => setTimeout(r, 20));   // let the UI repaint
         try {
           renderFull(off, offCtx, list[i].img);
-          const blob = await canvasToBlob(off);
-          files.push({ name: uniqueName(list[i].name, used), data: new Uint8Array(await blob.arrayBuffer()) });
+          let f;
+          if (meta) {
+            f = await jpegWithMeta(off, S);              // camera-style name + fresh EXIF, original name is dropped
+          } else {
+            const blob = await canvasToBlob(off);
+            f = { name: uniqueName(list[i].name, used), data: new Uint8Array(await blob.arrayBuffer()) };
+          }
+          if (asZip) {
+            files.push(f);
+          } else {                                       // separate images: save each one as soon as it's ready
+            triggerDownload(new Blob([f.data], { type: /\.jpe?g$/i.test(f.name) ? 'image/jpeg' : 'image/png' }), f.name);
+            saved++;
+            if (i < list.length - 1) await new Promise(r => setTimeout(r, MULTI_DL_GAP));
+          }
         } catch (err) {
           failed++;
           console.error('Failed to process', list[i].name, err);
         }
       }
 
-      if (!files.length) throw new Error('none of the images could be processed');
-      dlBtn.textContent = 'Zipping…';
-      await new Promise(r => setTimeout(r, 20));
-      triggerDownload(makeZip(files), `watermarked_batch_${downloadCount}.zip`);
+      if (asZip) {
+        if (!files.length) throw new Error('none of the images could be processed');
+        dlBtn.textContent = 'Zipping…';
+        await new Promise(r => setTimeout(r, 20));
+        triggerDownload(makeZip(files), `watermarked_batch_${downloadCount}.zip`);
+        statusText.textContent = `Done · ${files.length} image${files.length === 1 ? '' : 's'} zipped` + (failed ? ` · ${failed} failed` : '');
+      } else {
+        if (!saved) throw new Error('none of the images could be processed');
+        statusText.textContent = `Done · ${saved} image${saved === 1 ? '' : 's'} saved` + (failed ? ` · ${failed} failed` : '');
+      }
       downloadCount++;
-      statusText.textContent = `Done · ${files.length} image${files.length === 1 ? '' : 's'} zipped` + (failed ? ` · ${failed} failed` : '');
+      if (meta) rollMetaSession();
     } catch (err) {
       statusText.textContent = 'Something went wrong: ' + err.message;
     } finally {
       off.width = off.height = 0;
+      flatCanvas.width = flatCanvas.height = 0;
       batchBusy = false;
       document.body.classList.remove('busy');
       updateDownloadUI();
     }
   }
 
-  dlBtn.addEventListener('click', () => {
+  dlBtn.addEventListener('click', async () => {
     if (batchMode && items.length > 1) { downloadBatch(); return; }
     if (!img) return;
+    if (metaOn()) { await downloadSingleWithMeta(); return; }
     const a = document.createElement('a');
     a.download = `watermarked_${downloadCount}.png`;
     a.href = canvas.toDataURL('image/png');
@@ -1615,6 +2108,8 @@
 
   renderFilters();
   applyBatchUI();
+  initMeta();
+  initSaveMode();
 </script>
 </body>
 </html>
