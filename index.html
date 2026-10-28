@@ -298,6 +298,18 @@
     -webkit-appearance: none; appearance: none;
   }
   .field input[type="text"]:focus, .field select:focus { border-color: var(--accent); background: var(--surface); }
+  /* locked (disabled) dropdown: clearly greyed, dashed, padlock instead of the arrow */
+  .field select:disabled {
+    opacity: 0.6; cursor: not-allowed; border-style: dashed; background-color: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7469' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'%3E%3C/rect%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'%3E%3C/path%3E%3C/svg%3E");
+  }
+  .lock-tag {
+    display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 10px; letter-spacing: 0.04em;
+    color: var(--text-muted); border: 1px solid var(--border-strong); border-radius: 999px; vertical-align: 1px;
+  }
+  .lock-tag[hidden] { display: none; }
+  #export-note { transition: color 0.25s; }
+  #export-note.flash { color: var(--text); }
 
   .slider-row { display: flex; align-items: center; gap: 10px; }
   .slider-row input[type="range"] {
@@ -706,8 +718,8 @@
             <option value="1080">1080 px</option>
           </select>
         </div>
-        <div class="field">
-          <label>Format</label>
+        <div class="field" id="format-field">
+          <label>Format <span class="lock-tag" id="format-lock" hidden>🔒 JPG only</span></label>
           <select id="exportFormat">
             <option value="png">PNG (lossless)</option>
             <option value="jpg">JPG (smaller)</option>
@@ -2344,6 +2356,8 @@
     const forced = metaOn();
     exportFormatSel.disabled = forced;
     exportFormatSel.value = forced ? 'jpg' : userFormat;
+    exportFormatSel.title = forced ? 'Locked to JPG while "Replace metadata" is on' : '';
+    document.getElementById('format-lock').hidden = !forced;
     exportQualityWrap.style.display = getExportFmt() === 'jpg' ? 'flex' : 'none';
     exportNote.style.display = forced ? 'block' : 'none';
     updateExportInfo();
@@ -2356,6 +2370,12 @@
   function initExport() {
     exportSizeSel.addEventListener('change', updateExportInfo);
     exportFormatSel.addEventListener('change', () => { userFormat = exportFormatSel.value; syncExportUI(); });
+    // tapping the locked box (nothing happens on a disabled control) lights up the explanation instead
+    document.getElementById('format-field').addEventListener('click', () => {
+      if (!exportFormatSel.disabled) return;
+      exportNote.classList.add('flash');
+      setTimeout(() => exportNote.classList.remove('flash'), 1400);
+    });
     metaToggle.addEventListener('change', syncExportUI);
     syncExportUI();
   }
