@@ -5,11 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Photo Watermarker</title>
 <link rel="icon" type="image/png" href="favicon.png">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#131211">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watermarker">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <style>
+  /* DM Sans + DM Mono are bundled in /fonts (SIL Open Font License), so the app looks right offline too */
+  @font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/dm-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/dm-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/dm-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'DM Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/dm-mono-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'DM Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/dm-mono-latin-500-normal.woff2') format('woff2'); }
+
   @font-face {
     font-family: 'AG Book Rounded';
-    src: url('https://iamsuperon.github.io/Watermark_Filter_CMFY/AG%20Book%20Rounded%20Bold.otf') format('opentype');
+    src: url('AG%20Book%20Rounded%20Bold.otf') format('opentype');
     font-weight: bold;
     font-style: normal;
   }
@@ -319,6 +332,19 @@
     width: fit-content;
   }
   .btn-secondary:hover { background: var(--border); }
+  .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary:disabled:hover { background: var(--surface2); }
+
+  /* install prompt */
+  .install-bar {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 16px; font-size: 14px; line-height: 1.4;
+  }
+  .install-bar[hidden] { display: none; }
+  .install-bar > span { flex: 1; color: var(--text); }
+  .install-bar .btn-secondary { font-size: 14px; padding: 9px 14px; }
+  .install-bar .icon-btn { font-size: 20px; line-height: 1; }
   .btn-secondary.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 
   .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
@@ -470,7 +496,7 @@
   <div class="header">
     <div class="header-text">
       <h1>Photo Watermarker</h1>
-      <p>BY COMFY</p>
+      <p>BY COMFY<span id="net-tag"></span></p>
     </div>
     <div class="header-actions">
       <!-- Batch mode toggle -->
@@ -493,6 +519,13 @@
       </button>
       <button class="icon-btn" id="theme-btn" title="Toggle dark mode">☀️</button>
     </div>
+  </div>
+
+  <!-- Install prompt (only shown when the browser says the app can be installed) -->
+  <div class="install-bar" id="install-bar" hidden>
+    <span id="install-text"></span>
+    <button type="button" id="install-btn" class="btn-secondary">Install</button>
+    <button type="button" id="install-dismiss" class="icon-btn" aria-label="Dismiss">×</button>
   </div>
 
   <div class="drop-zone" id="drop-zone">
@@ -630,6 +663,12 @@
           </svg>
           Crop
         </button>
+        <button id="undo-crop-btn" class="btn-secondary" disabled title="Undo the last crop (Ctrl+Z)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+          </svg>
+          <span id="undo-crop-label">Undo crop</span>
+        </button>
       </div>
       <div class="field">
         <label>Brightness &nbsp;<span class="slider-val" id="brightnessVal">0</span></label>
@@ -653,6 +692,36 @@
         <div class="slider-row"><input type="range" id="filterStrength" min="0" max="100" value="100"></div>
       </div>
     </div>
+    <div class="panel-section">
+      <div class="section-title">Export</div>
+      <div class="field-grid">
+        <div class="field">
+          <label>Longest side</label>
+          <select id="exportSize">
+            <option value="0">Original size</option>
+            <option value="4096">4096 px</option>
+            <option value="3000">3000 px</option>
+            <option value="2048">2048 px</option>
+            <option value="1600">1600 px</option>
+            <option value="1080">1080 px</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Format</label>
+          <select id="exportFormat">
+            <option value="png">PNG (lossless)</option>
+            <option value="jpg">JPG (smaller)</option>
+          </select>
+        </div>
+        <div class="field full" id="export-quality-wrap">
+          <label>JPG quality &nbsp;<span class="slider-val" id="exportQualityVal">95%</span></label>
+          <div class="slider-row"><input type="range" id="exportQuality" min="50" max="100" value="95"></div>
+        </div>
+      </div>
+      <div class="meta-hint" id="export-info"></div>
+      <div class="meta-hint" id="export-note" style="margin-top: 6px;">Saved as JPG while Replace metadata is on, because camera info only works in JPG.</div>
+    </div>
+
     <div class="panel-section">
       <div class="toggle-row">
         <div class="toggle-info">
@@ -775,6 +844,20 @@
   const previewWrap = document.getElementById('preview-wrap');
   const flipBtn = document.getElementById('flip-btn');
   const cropBtn = document.getElementById('crop-btn');
+  const undoCropBtn = document.getElementById('undo-crop-btn');
+  const undoCropLabel = document.getElementById('undo-crop-label');
+  const exportSizeSel = document.getElementById('exportSize');
+  const exportFormatSel = document.getElementById('exportFormat');
+  const exportQualityInput = document.getElementById('exportQuality');
+  const exportQualityVal = document.getElementById('exportQualityVal');
+  const exportQualityWrap = document.getElementById('export-quality-wrap');
+  const exportInfo = document.getElementById('export-info');
+  const exportNote = document.getElementById('export-note');
+  const netTag = document.getElementById('net-tag');
+  const installBar = document.getElementById('install-bar');
+  const installText = document.getElementById('install-text');
+  const installBtn = document.getElementById('install-btn');
+  const installDismiss = document.getElementById('install-dismiss');
   const themeBtn = document.getElementById('theme-btn');
   const dragWmBtn = document.getElementById('drag-wm-btn');
   const dragHint = document.getElementById('drag-wm-hint');
@@ -817,6 +900,8 @@
     isDarkMode = !isDarkMode;
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
     themeBtn.textContent = isDarkMode ? '☀️' : '🌙';
+    const tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute('content', isDarkMode ? '#131211' : '#f5f3ef');   // browser / app title bar follows the theme
   });
 
   // ══════════════════
@@ -862,7 +947,7 @@
     for (const f of files) {
       try {
         const im = await loadImageFile(f);
-        entries.push({ id: ++uid, name: baseName(f, opts.pasted), img: im, thumb: makeThumb(im) });
+        entries.push({ id: ++uid, name: baseName(f, opts.pasted), img: im, thumb: makeThumb(im), history: [] });
       } catch (_) { failed++; }
     }
     if (!entries.length) { statusText.textContent = 'Could not read that file.'; return; }
@@ -904,6 +989,7 @@
   }
 
   function renderQueue() {
+    updateUndoUI();
     const show = batchMode && items.length > 0;
     queuePanel.style.display = show ? 'block' : 'none';
     if (!show) { queueGrid.innerHTML = ''; return; }
@@ -956,6 +1042,7 @@
     else if (batchMode && n === 0) dlBtn.textContent = `Download all ${tail}`;
     else dlBtn.textContent = 'Download image';
     dlBtn.disabled = !n || cropMode;
+    updateUndoUI();
   }
 
   function renderSaveMode() {
@@ -1042,8 +1129,10 @@
     isFlipped = false;
     flipBtn.classList.remove('active');
 
+    workCache = { src: null, key: '', canvas: null };
     renderQueue();
     updateDownloadUI();
+    updateExportInfo();
   }
 
   trashBtn.addEventListener('click', () => {
@@ -1124,12 +1213,12 @@
         else if (['grain','brightness','contrast'].includes(this.id)) valSpan.textContent = this.value;
         else valSpan.textContent = this.value + '%';
       }
-      draw();
+      scheduleDraw();
     });
   });
 
   ['wText','wColor'].forEach(id => {
-    document.getElementById(id).addEventListener('input', draw);
+    document.getElementById(id).addEventListener('input', scheduleDraw);
   });
 
   // Picking a preset position goes back to preset placement (and ends drag mode)
@@ -1186,7 +1275,7 @@
     wmPos.ny = Math.max(0.02, Math.min(0.98, my / dispH));
     wmCustom = true;
     updateWmHandlePosition();
-    draw();
+    scheduleDraw();
   });
 
   wmHandle.addEventListener('pointerup', () => { wmDragging = false; });
@@ -1221,6 +1310,7 @@
     setWmDragMode(false);
     renderFilters();
     resetMetaControls();
+    resetExportControls();
     if (img) draw();
   });
 
@@ -1375,19 +1465,80 @@
     targetCtx.fillText(text, x, y);
   }
 
-  // Photo + effects + watermark, using the current settings
-  function renderFull(targetCanvas, targetCtx, src) {
-    drawRaw(targetCanvas, targetCtx, src);
-    drawWatermark(targetCanvas, targetCtx, src.width, src.height, getBorderPx(src));
+  // ── working copy: shrink the photo first, so previews stay light and exports hit the chosen size ──
+  const PREVIEW_MAX = 1600;          // longest side of the on-screen preview (px)
+  let workCache = { src: null, key: '', canvas: null };
+
+  function stepScale(src, w, h) {    // halve step by step, then land on w × h: clean result in every browser
+    let cur = src;
+    while (cur.width / 2 >= w && cur.height / 2 >= h) {
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.floor(cur.width / 2)); c.height = Math.max(1, Math.floor(cur.height / 2));
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, c.width, c.height);
+      if (cur !== src) cur.width = cur.height = 0;
+      cur = c;
+    }
+    const out = document.createElement('canvas'); out.width = w; out.height = h;
+    const g = out.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, w, h);
+    if (cur !== src) cur.width = cur.height = 0;
+    return out;
+  }
+
+  // The photo scaled so the FINISHED picture (border included) fits maxSide; the original when no shrinking is needed
+  function workSource(src, maxSide, cache) {
+    if (!maxSide) return src;
+    const b0 = getBorderPx(src);
+    const s = Math.min(1, maxSide / Math.max(src.width + 2 * b0, src.height + 2 * b0));
+    if (s >= 1) return src;
+    const w = Math.max(1, Math.round(src.width * s)), h = Math.max(1, Math.round(src.height * s));
+    if (!cache) return stepScale(src, w, h);
+    const key = w + 'x' + h;
+    if (workCache.src !== src || workCache.key !== key) workCache = { src, key, canvas: stepScale(src, w, h) };
+    return workCache.canvas;
+  }
+
+  // Photo + effects + watermark, using the current settings. maxSide = 0 → full original size
+  function renderFull(targetCanvas, targetCtx, src, maxSide = 0, cache = false) {
+    const work = workSource(src, maxSide, cache);
+    drawRaw(targetCanvas, targetCtx, work);
+    drawWatermark(targetCanvas, targetCtx, work.width, work.height, getBorderPx(work));
+    if (work !== src && !cache) work.width = work.height = 0;      // release the temporary copy right away
+  }
+
+  // What an export will measure with the current settings (border included)
+  function exportDims(src) {
+    const b0 = getBorderPx(src), W0 = src.width + 2 * b0, H0 = src.height + 2 * b0;
+    const max = getExportMax();
+    const s = max ? Math.min(1, max / Math.max(W0, H0)) : 1;
+    if (s >= 1) return { w: W0, h: H0, scaled: false, W0, H0 };
+    const w = Math.max(1, Math.round(src.width * s)), h = Math.max(1, Math.round(src.height * s));
+    const b = borderToggle.checked ? Math.round(Math.min(w, h) * parseInt(borderSizeInput.value, 10) / 100) : 0;
+    return { w: w + 2 * b, h: h + 2 * b, scaled: true, W0, H0 };
+  }
+  function updateExportInfo() {
+    if (!img) { exportInfo.textContent = 'Load a photo to see the output size.'; return; }
+    const d = exportDims(img);
+    exportInfo.textContent = d.scaled
+      ? `Output: ${d.w} × ${d.h} px (shrunk from ${d.W0} × ${d.H0})`
+      : `Output: ${d.w} × ${d.h} px (original size)`;
+  }
+
+  // Slider drags fire many events per frame: redraw at most once per frame
+  let drawQueued = false;
+  function scheduleDraw() {
+    if (drawQueued) return;
+    drawQueued = true;
+    requestAnimationFrame(() => { drawQueued = false; draw(); });
   }
 
   function draw() {
     if (!img) return;
-    renderFull(canvas, ctx, img);
+    renderFull(canvas, ctx, img, PREVIEW_MAX, true);
 
     previewWrap.style.display = 'block';
     updateDownloadUI();
     updateStatus();
+    updateExportInfo();
 
     if (wmDragMode) updateWmHandlePosition();
   }
@@ -1788,7 +1939,7 @@
   const metaOptions = document.getElementById('meta-options');
   const metaReroll  = document.getElementById('meta-reroll');
   let metaSession = null;
-  let metaBusy = false;
+  let singleBusy = false;
   const metaOn = () => metaToggle.checked;
 
   function renderMetaPreview() {
@@ -1825,7 +1976,7 @@
     const g = flatCanvas.getContext('2d');
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(c, 0, 0);
     return new Promise((resolve, reject) => {
-      flatCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Could not encode JPG')), 'image/jpeg', 0.95);
+      flatCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Could not encode JPG')), 'image/jpeg', getExportQuality());
     });
   }
   async function jpegWithMeta(c, S) {
@@ -1834,23 +1985,51 @@
     return { name: shot.filename, data: exInject(jpeg, shot.tiff) };
   }
 
-  async function downloadSingleWithMeta() {
-    if (metaBusy) return;
-    metaBusy = true;
+  // ── export settings (read at the moment of download) ──
+  const fmtBytes = n => n < 1048576 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+  const getExportMax = () => parseInt(exportSizeSel.value, 10) || 0;
+  const getExportFmt = () => metaOn() ? 'jpg' : exportFormatSel.value;       // camera info only fits in JPG
+  const getExportQuality = () => Math.min(1, Math.max(0.5, (parseInt(exportQualityInput.value, 10) || 95) / 100));
+
+  // Render one photo at the export size and encode it → { name, data, type, w, h }
+  async function exportPhoto(src, off, offCtx, o) {
+    renderFull(off, offCtx, src, getExportMax());
+    const w = off.width, h = off.height;
+    if (o.S) {                                         // Replace metadata is on: JPG + fresh camera EXIF + camera-style name
+      const f = await jpegWithMeta(off, o.S);
+      return { name: f.name, data: f.data, type: 'image/jpeg', w, h };
+    }
+    if (getExportFmt() === 'jpg') {
+      const data = new Uint8Array(await (await canvasToJpeg(off)).arrayBuffer());
+      return { name: o.name('jpg'), data, type: 'image/jpeg', w, h };
+    }
+    const data = new Uint8Array(await (await canvasToBlob(off)).arrayBuffer());
+    return { name: o.name('png'), data, type: 'image/png', w, h };
+  }
+
+  async function downloadSingle() {
+    if (singleBusy || !img) return;
+    singleBusy = true;
     dlBtn.disabled = true;
+    const src = img;
+    const off = document.createElement('canvas');
+    const offCtx = off.getContext('2d');
     try {
-      const S = getMetaSession();
-      exFreshen(S, 1);
-      const f = await jpegWithMeta(canvas, S);
-      triggerDownload(new Blob([f.data], { type: 'image/jpeg' }), f.name);
-      statusText.textContent = `Saved ${f.name} · metadata replaced`;
+      try { await document.fonts.load("bold 16px 'AG Book Rounded'"); } catch (_) {}
+      const meta = metaOn();
+      const S = meta ? getMetaSession() : null;
+      if (S) exFreshen(S, 1);
+      const f = await exportPhoto(src, off, offCtx, { S, name: ext => `watermarked_${downloadCount}.${ext}` });
+      triggerDownload(new Blob([f.data], { type: f.type }), f.name);
+      statusText.textContent = `Saved ${f.name} · ${f.w} × ${f.h} · ${fmtBytes(f.data.length)}` + (meta ? ' · metadata replaced' : '');
       downloadCount++;
-      rollMetaSession();
+      if (meta) rollMetaSession();
     } catch (err) {
       statusText.textContent = 'Something went wrong: ' + err.message;
     } finally {
+      off.width = off.height = 0;
       flatCanvas.width = flatCanvas.height = 0;
-      metaBusy = false;
+      singleBusy = false;
       updateDownloadUI();
     }
   }
@@ -1872,10 +2051,10 @@
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  function uniqueName(base, used) {
-    let name = `${base}_watermarked.png`;
+  function uniqueName(base, used, ext = 'png') {
+    let name = `${base}_watermarked.${ext}`;
     let n = 2;
-    while (used.has(name.toLowerCase())) name = `${base}_watermarked_${n++}.png`;
+    while (used.has(name.toLowerCase())) name = `${base}_watermarked_${n++}.${ext}`;
     used.add(name.toLowerCase());
     return name;
   }
@@ -1906,14 +2085,8 @@
         statusText.textContent = `Watermarking ${list[i].name}…`;
         await new Promise(r => setTimeout(r, 20));   // let the UI repaint
         try {
-          renderFull(off, offCtx, list[i].img);
-          let f;
-          if (meta) {
-            f = await jpegWithMeta(off, S);              // camera-style name + fresh EXIF, original name is dropped
-          } else {
-            const blob = await canvasToBlob(off);
-            f = { name: uniqueName(list[i].name, used), data: new Uint8Array(await blob.arrayBuffer()) };
-          }
+          // resized + encoded the way the Export settings say; with Replace metadata on you get a camera-style name + fresh EXIF
+          const f = await exportPhoto(list[i].img, off, offCtx, { S, name: ext => uniqueName(list[i].name, used, ext) });
           if (asZip) {
             files.push(f);
           } else {                                       // separate images: save each one as soon as it's ready
@@ -1953,12 +2126,7 @@
   dlBtn.addEventListener('click', async () => {
     if (batchMode && items.length > 1) { downloadBatch(); return; }
     if (!img) return;
-    if (metaOn()) { await downloadSingleWithMeta(); return; }
-    const a = document.createElement('a');
-    a.download = `watermarked_${downloadCount}.png`;
-    a.href = canvas.toDataURL('image/png');
-    a.click();
-    downloadCount++;
+    await downloadSingle();
   });
 
   // ══════════════════
@@ -2014,6 +2182,7 @@
     cropToolbar.style.display = 'flex';
     previewWrap.style.display = 'none';
     dlBtn.disabled = true;
+    updateUndoUI();
     cropContainer.offsetWidth;
     const displayW = cropContainer.clientWidth;
     const displayH = cropCanvas.clientHeight;
@@ -2046,13 +2215,42 @@
     const target = items[activeIndex];   // the queue entry being cropped
     const croppedImg = new Image();
     croppedImg.onload = () => {
-      if (target) { target.img = croppedImg; target.thumb = makeThumb(croppedImg); }
+      if (target) {
+        target.history.push({ img: target.img, thumb: target.thumb });   // keep the photo as it was, so the crop can be undone
+        if (target.history.length > 10) target.history.shift();
+        target.img = croppedImg; target.thumb = makeThumb(croppedImg);
+      }
       if (!target || items[activeIndex] === target) img = croppedImg;
       renderQueue();
       draw();
     };
     croppedImg.src = tmp.toDataURL();
   }
+
+  // ── Undo crop (per photo, steps back through several crops; Ctrl/Cmd+Z works too) ──
+  function updateUndoUI() {
+    const it = items[activeIndex], n = it && it.history ? it.history.length : 0;
+    undoCropBtn.disabled = n === 0 || cropMode || batchBusy;
+    undoCropLabel.textContent = n > 1 ? `Undo crop (${n})` : 'Undo crop';
+  }
+  function undoCrop() {
+    if (cropMode || batchBusy) return false;
+    const it = items[activeIndex];
+    if (!it || !it.history || !it.history.length) return false;
+    const prev = it.history.pop();
+    it.img = prev.img; it.thumb = prev.thumb;
+    img = it.img;
+    renderQueue();
+    draw();
+    return true;
+  }
+  undoCropBtn.addEventListener('click', undoCrop);
+  document.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'z') return;
+    const t = e.target, tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;   // text boxes keep their own undo
+    if (undoCrop()) e.preventDefault();
+  });
 
   function updateCropUI() {
     cropBoxEl.style.left   = cropBox.x + 'px';
@@ -2138,10 +2336,82 @@
     handle.addEventListener('pointerup', () => { cropDrag = null; });
   });
 
+  // ══════════════════
+  //  EXPORT SETTINGS UI
+  // ══════════════════
+  let userFormat = 'png';
+  function syncExportUI() {
+    const forced = metaOn();
+    exportFormatSel.disabled = forced;
+    exportFormatSel.value = forced ? 'jpg' : userFormat;
+    exportQualityWrap.style.display = getExportFmt() === 'jpg' ? 'flex' : 'none';
+    exportNote.style.display = forced ? 'block' : 'none';
+    updateExportInfo();
+  }
+  function resetExportControls() {
+    exportSizeSel.value = '0'; userFormat = 'png';
+    exportQualityInput.value = 95; exportQualityVal.textContent = '95%';
+    syncExportUI();
+  }
+  function initExport() {
+    exportSizeSel.addEventListener('change', updateExportInfo);
+    exportFormatSel.addEventListener('change', () => { userFormat = exportFormatSel.value; syncExportUI(); });
+    metaToggle.addEventListener('change', syncExportUI);
+    syncExportUI();
+  }
+
+  // ══════════════════
+  //  OFFLINE + INSTALL
+  // ══════════════════
+  let swReady = false;
+  let deferredInstall = null;
+  function updateNetTag() {
+    netTag.textContent = !navigator.onLine ? ' · offline mode' : (swReady ? ' · works offline' : '');
+  }
+  const isStandalone = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const installDismissed = () => { try { return localStorage.getItem('wm-install-dismissed') === '1'; } catch (_) { return false; } };
+  function showInstallBar(text, withButton) {
+    if (isStandalone() || installDismissed()) return;
+    installText.textContent = text;
+    installBtn.style.display = withButton ? '' : 'none';
+    installBar.hidden = false;
+  }
+  function initOffline() {
+    window.addEventListener('online', updateNetTag);
+    window.addEventListener('offline', updateNetTag);
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      const register = () => navigator.serviceWorker.register('sw.js')
+        .then(() => navigator.serviceWorker.ready)
+        .then(() => { swReady = true; updateNetTag(); })
+        .catch(() => {});
+      if (document.readyState === 'complete') register(); else window.addEventListener('load', register);
+    }
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredInstall = e;
+      showInstallBar('Install this app on your device. It works offline too.', true);
+    });
+    window.addEventListener('appinstalled', () => { deferredInstall = null; installBar.hidden = true; });
+    installBtn.addEventListener('click', async () => {
+      if (!deferredInstall) return;
+      const p = deferredInstall; deferredInstall = null;
+      installBar.hidden = true;
+      try { p.prompt(); await p.userChoice; } catch (_) {}
+    });
+    installDismiss.addEventListener('click', () => {
+      installBar.hidden = true;
+      try { localStorage.setItem('wm-install-dismissed', '1'); } catch (_) {}
+    });
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent)) showInstallBar('To install: tap the Share button, then “Add to Home Screen”.', false);
+    updateNetTag();
+  }
+
   renderFilters();
   applyBatchUI();
   initMeta();
   initSaveMode();
+  initExport();
+  initOffline();
 </script>
 </body>
 </html>
